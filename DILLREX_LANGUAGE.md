@@ -1,5 +1,7 @@
 # Dillrex Language
 
+![Dillrex icon](assets/dillrex-icon.png)
+
 Dillrex is a small Python-powered programming language experiment.
 
 Current syntax:
@@ -53,6 +55,11 @@ print("hello world")
 ```
 
 Press Enter on a blank line to run them.
+
+## Terminal Icon
+
+Use `assets/dillrex-icon.png` for the custom Dillrex terminal design. Windows builds can use
+`assets/dillrex-icon.ico`.
 
 ## Run Tests
 

@@ -1,5 +1,7 @@
 # Dillrex
 
+![Dillrex icon](assets/dillrex-icon.png)
+
 Dillrex is a small Python-powered programming language experiment.
 
 The first version supports:
@@ -56,6 +58,9 @@ On Linux:
 ```bash
 python3 -m dillrex shell
 ```
+
+The terminal icon lives at `assets/dillrex-icon.png`, with a Windows `.ico` version at
+`assets/dillrex-icon.ico`.
 
 ## Tests
 
