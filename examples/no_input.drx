@@ -1,0 +1,11 @@
+# Quick Dillrex smoke test
+
+fn main() {
+    print("Hello from Dillrex")
+
+    x = 0
+    loop x < 3 {
+        print("x = " + x)
+        x = x + 1
+    }
+}

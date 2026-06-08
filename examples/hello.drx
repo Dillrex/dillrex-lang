@@ -1,0 +1,17 @@
+# My first Dillrex program
+
+fn main() {
+    name = in("Name: ")
+
+    if name == "Dylan" {
+        print("Welcome back Dylan")
+    } else {
+        print("Hello " + name)
+    }
+
+    x = 0
+    loop x < 5 {
+        print(x)
+        x = x + 1
+    }
+}

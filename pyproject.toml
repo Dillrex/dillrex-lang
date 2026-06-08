@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dillrex-lang"
+version = "0.1.0"
+description = "The first Python-powered Dillrex programming language runtime."
+readme = "DILLREX_LANGUAGE.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Dillrex" }
+]
+
+[project.scripts]
+dillrex = "dillrex.cli:main"

@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+*.exe
+*.apk
+*.blockmap
+audio/recordings/
+logs/
+.electron-cache/
+.electron-builder-cache/
+apps/windows/node_modules/
+apps/windows/dist/
+apps/android/app/build/
+apps/android/build/
+downloads/
