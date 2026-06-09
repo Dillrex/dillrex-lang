@@ -158,8 +158,6 @@ On Linux:
 python3 -m dillrex shell
 ```
 
-The terminal icon lives at `assets/dillrex-icon.png`, with a Windows `.ico` version at
-`assets/dillrex-icon.ico`.
 
 ## Variables
 
