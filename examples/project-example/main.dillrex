@@ -1,0 +1,5 @@
+# Dillrex project entry point
+
+fn main() {
+    print("hello from a Dillrex project")
+}

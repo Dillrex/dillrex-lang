@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import glob
 import io
+import json
 from pathlib import Path
 import shlex
 import subprocess
@@ -51,6 +52,7 @@ COMMANDS = sorted(
         "mkdir",
         "new",
         "open",
+        "project",
         "pwd",
         "run",
         "start",
@@ -59,6 +61,7 @@ COMMANDS = sorted(
     }
 )
 PATH_COMMANDS = {"cat", "cd", "dir", "ls", "mkdir", "new", "open", "run", "start", "touch", "type"}
+PROJECT_FOLDERS = ("src", "assets", "build")
 
 
 class DillrexTerminalApp:
@@ -277,6 +280,15 @@ class DillrexTerminalApp:
             matches = [name for name in subcommands if name.startswith(partial)]
             return Completion(command, tokens[1], matches, lambda match: replace_last_token(command, match + " "))
 
+        if root_command == "project" and len(tokens) == 2 and not ends_with_space:
+            subcommands = ["new", "run"]
+            partial = tokens[1].lower()
+            matches = [name for name in subcommands if name.startswith(partial)]
+            return Completion(command, tokens[1], matches, lambda match: replace_last_token(command, match + " "))
+
+        if root_command == "project" and len(tokens) >= 3 and tokens[1].lower() == "new":
+            return Completion(command, "", [], lambda match: command)
+
         if root_command not in PATH_COMMANDS and root_command != "dillrex":
             return Completion(command, "", [], lambda match: command)
 
@@ -354,6 +366,7 @@ class DillrexTerminalApp:
             "type": self.cat,
             "echo": self.echo,
             "open": self.open_path,
+            "project": self.project,
             "start": self.open_path,
             "help": self.help,
             "dillrex": self.dillrex,
@@ -469,9 +482,81 @@ class DillrexTerminalApp:
         subprocess.Popen(["explorer", str(path)])
 
     def help(self, _args: list[str]) -> None:
-        self.write("Commands: new, run, ls, dir, cd, pwd, mkdir, touch, cat, type, echo, open, clear, cls, exit\n")
+        self.write("Commands: new, run, project, ls, dir, cd, pwd, mkdir, touch, cat, type, echo, open, clear, cls, exit\n")
         self.write("Examples: new notes.txt, new app.dillrex, run app.dillrex, dillrex code print(\"hello\")\n")
+        self.write("Projects: project new my-app, project run\n")
         self.write("Autocomplete: press Tab to complete, press Tab twice to show options.\n")
+
+    def project(self, args: list[str]) -> None:
+        if not args:
+            self.write("Usage: project new my-app OR project run\n", "warn")
+            return
+        action = args[0].lower()
+        if action == "new":
+            self.project_new(args[1:])
+            return
+        if action == "run":
+            self.project_run()
+            return
+        self.write(f"Unknown project command: {action}\n", "error")
+
+    def project_new(self, args: list[str]) -> None:
+        if not args:
+            name = simpledialog.askstring("New Dillrex project", "Project name:", parent=self.root)
+            if not name:
+                return
+        else:
+            name = args[0]
+
+        project_path = self.resolve_path(name)
+        if project_path.exists():
+            self.write(f"Project already exists: {project_path}\n", "warn")
+            return
+
+        project_path.mkdir(parents=True)
+        for folder in PROJECT_FOLDERS:
+            (project_path / folder).mkdir()
+
+        config = {
+            "name": project_path.name,
+            "version": "0.1.0",
+            "main": "main.dillrex",
+            "source": "src",
+            "assets": "assets",
+            "build": "build",
+        }
+        (project_path / "dillrex.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        (project_path / "main.dillrex").write_text(DILLREX_TEMPLATE, encoding="utf-8")
+
+        self.cwd = project_path.resolve()
+        self.write(f"Created project {project_path.name}\n", "accent")
+        self.write(f"Folder: {self.cwd}\n")
+
+    def project_run(self) -> None:
+        project_path = self.find_project_root()
+        if project_path is None:
+            self.write("No dillrex.json found in this folder or its parents.\n", "error")
+            return
+
+        config_path = project_path / "dillrex.json"
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            self.write(f"Invalid dillrex.json: {exc}\n", "error")
+            return
+
+        main_name = config.get("main", "main.dillrex")
+        main_path = project_path / main_name
+        self.dillrex_run([str(main_path)])
+
+    def find_project_root(self) -> Path | None:
+        current = self.cwd.resolve()
+        while True:
+            if (current / "dillrex.json").exists():
+                return current
+            if current.parent == current:
+                return None
+            current = current.parent
 
     def dillrex(self, args: list[str]) -> None:
         if not args:
