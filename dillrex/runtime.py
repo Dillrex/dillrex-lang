@@ -234,11 +234,16 @@ class Parser:
 
 
 class Interpreter:
-    def __init__(self, functions: dict[str, Any]):
+    def __init__(
+        self,
+        functions: dict[str, Any],
+        output: Callable[..., Any] = print,
+        input_func: Callable[[str], str] = input,
+    ):
         self.functions = functions
         self.builtins: dict[str, Callable[..., Any]] = {
-            "print": print,
-            "in": input,
+            "print": output,
+            "in": input_func,
         }
 
     def run(self) -> None:
@@ -331,14 +336,22 @@ def parse(source: str) -> dict[str, Any]:
     return Parser(tokenize(source)).parse_program()
 
 
-def run_source(source: str) -> None:
-    Interpreter(parse(source)).run()
+def run_source(
+    source: str,
+    output: Callable[..., Any] = print,
+    input_func: Callable[[str], str] = input,
+) -> None:
+    Interpreter(parse(source), output=output, input_func=input_func).run()
 
 
-def run_file(path: Path) -> None:
+def run_file(
+    path: Path,
+    output: Callable[..., Any] = print,
+    input_func: Callable[[str], str] = input,
+) -> None:
     if not path.exists():
         raise DillrexError(f"File not found: {path}")
-    run_source(path.read_text(encoding="utf-8"))
+    run_source(path.read_text(encoding="utf-8"), output=output, input_func=input_func)
 
 
 def run_repl() -> None:

@@ -49,6 +49,67 @@ python3 -m dillrex run examples/hello.drx
 
 ## Open The Dillrex Terminal
 
+For the custom Windows terminal window, double-click:
+
+```text
+START_DILLREX_TERMINAL.vbs
+```
+
+This opens the Dillrex window without leaving command windows behind.
+
+Inside the Dillrex Terminal, type directly after the `dillrex>` prompt. Create and run `.dillrex`
+files like this:
+
+```text
+new hello.dillrex
+run hello.dillrex
+```
+
+`new` can create whatever extension you type:
+
+```text
+new notes.txt
+new app.dillrex
+new script.bat
+new page.html
+```
+
+It also supports common terminal commands like:
+
+```text
+ls
+dir
+cd examples
+pwd
+mkdir projects
+touch notes.txt
+cat notes.txt
+dillrex code print("hello")
+clear
+exit
+```
+
+Autocomplete works like a normal terminal:
+
+```text
+Tab       completes the current command or file name
+Tab Tab   shows matching options when there are several
+```
+
+You can also run the custom terminal from PowerShell:
+
+```powershell
+py -m dillrex.terminal_app
+```
+
+If `py` is not available:
+
+```powershell
+python -m dillrex.terminal_app
+```
+
+The older command-line shell still works inside PowerShell:
+
 ```powershell
 python -m dillrex shell
 ```

@@ -1,0 +1,5 @@
+# My Dillrex program
+
+fn main() {
+    print("hello from Dillrex")
+}
