@@ -20,6 +20,16 @@ fn main then
         return
     end
 
+    if command == "decode" then
+        decodeArtifactCommand(sourcePath)
+        return
+    end
+
+    if command == "run-artifact" then
+        runArtifactCommand(sourcePath, argsAfterIndex(args, 2))
+        return
+    end
+
     if not exists(sourcePath) then
         print("Missing file: " + sourcePath)
         return
@@ -69,6 +79,8 @@ fn printUsage() then
     print("Usage: dillrex bootstrap/dillrexc.drx run|tokens|ast|check file.drx")
     print("       dillrex bootstrap/dillrexc.drx build file.drx output.drxc")
     print("       dillrex bootstrap/dillrexc.drx read artifact.drxc")
+    print("       dillrex bootstrap/dillrexc.drx decode artifact.drxc")
+    print("       dillrex bootstrap/dillrexc.drx run-artifact artifact.drxc")
 end
 
 fn buildArtifact(sourcePath, tokens, program) then
@@ -88,18 +100,14 @@ fn readArtifactCommand(path) then
         return
     end
 
-    set lines = split(trim(read(path)), "\n")
-    set header = lineAt(lines, 0, "Missing artifact header")
-    if header != "DILLREX-COMPILED\t0.1" then
-        throw "Invalid artifact header"
-    end
-
+    set lines = readArtifactLines(path)
     set source = lineValue(lines, 1, "SOURCE")
     set tokens = lineValue(lines, 2, "TOKENS")
     set imports = lineValue(lines, 3, "IMPORTS")
     set functions = lineValue(lines, 4, "FUNCTIONS")
     set body = lineValue(lines, 5, "BODY")
     set ast = lineValue(lines, 6, "AST")
+    set program = decodeValue(ast)
 
     print("ARTIFACT\t" + path)
     print("SOURCE\t" + source)
@@ -108,6 +116,42 @@ fn readArtifactCommand(path) then
     print("FUNCTIONS\t" + functions)
     print("BODY\t" + body)
     print("AST_BYTES\t" + len(ast))
+    print("AST_ROOT\t" + program[0])
+    print("AST_IMPORTS\t" + len(program[1]))
+    print("AST_FUNCTIONS\t" + len(program[2]))
+    print("AST_BODY\t" + len(program[3]))
+end
+
+fn decodeArtifactCommand(path) then
+    if not exists(path) then
+        print("Missing file: " + path)
+        return
+    end
+
+    set lines = readArtifactLines(path)
+    set ast = lineValue(lines, 6, "AST")
+    print(encodeValue(decodeValue(ast)))
+end
+
+fn runArtifactCommand(path, runArgs) then
+    if not exists(path) then
+        print("Missing file: " + path)
+        return
+    end
+
+    set lines = readArtifactLines(path)
+    set sourcePath = decodeValue(lineValue(lines, 1, "SOURCE"))
+    set program = decodeValue(lineValue(lines, 6, "AST"))
+    runProgram(program, runArgs, sourcePath)
+end
+
+fn readArtifactLines(path) then
+    set lines = split(trim(read(path)), "\n")
+    set header = lineAt(lines, 0, "Missing artifact header")
+    if header != "DILLREX-COMPILED\t0.1" then
+        throw "Invalid artifact header"
+    end
+    return lines
 end
 
 main()

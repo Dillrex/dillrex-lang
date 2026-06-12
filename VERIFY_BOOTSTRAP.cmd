@@ -39,6 +39,10 @@ if errorlevel 1 exit /b 1
 if not exist bootstrap\_verify_no_input.drxc exit /b 1
 "%PY%" -m dillrex bootstrap\dillrexc.drx read bootstrap\_verify_no_input.drxc >nul
 if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrexc.drx decode bootstrap\_verify_no_input.drxc >nul
+if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrexc.drx run-artifact bootstrap\_verify_no_input.drxc >nul
+if errorlevel 1 exit /b 1
 del bootstrap\_verify_no_input.drxc
 
 echo.
@@ -54,6 +58,10 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 if not exist bootstrap\_verify_math.drxc exit /b 1
 "%PY%" -m dillrex bootstrap\dillrex-self.drx --quiet bootstrap\dillrexc.drx read bootstrap\_verify_math.drxc >nul
+if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrex-self.drx --quiet bootstrap\dillrexc.drx decode bootstrap\_verify_math.drxc >nul
+if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrex-self.drx --quiet bootstrap\dillrexc.drx run-artifact bootstrap\_verify_math.drxc >nul
 if errorlevel 1 exit /b 1
 del bootstrap\_verify_math.drxc
 

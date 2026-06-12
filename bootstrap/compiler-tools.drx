@@ -76,3 +76,143 @@ fn lineValue(lines, index, expectedName) then
     return fieldAt(line, 1, "Missing " + expectedName + " value")
 end
 
+fn decodeValue(textValue) then
+    set parser = [textValue, 0]
+    set value = parseEncodedValue(parser)
+    skipEncodedSpace(parser)
+    if parser[1] != len(parser[0]) then
+        throw "Unexpected text after encoded value"
+    end
+    return value
+end
+
+fn parseEncodedValue(parser) then
+    skipEncodedSpace(parser)
+
+    if parser[1] >= len(parser[0]) then
+        throw "Expected encoded value"
+    end
+
+    set ch = parser[0][parser[1]]
+
+    if ch == "[" then
+        return parseEncodedList(parser)
+    end
+
+    if ch == "\"" then
+        return parseEncodedString(parser)
+    end
+
+    return parseEncodedAtom(parser)
+end
+
+fn parseEncodedList(parser) then
+    expectEncodedChar(parser, "[")
+    set values = []
+    skipEncodedSpace(parser)
+
+    if currentEncodedChar(parser) == "]" then
+        set parser[1] = parser[1] + 1
+        return values
+    end
+
+    set reading = true
+    loop reading then
+        push(values, parseEncodedValue(parser))
+        skipEncodedSpace(parser)
+
+        if currentEncodedChar(parser) == "," then
+            set parser[1] = parser[1] + 1
+        else
+            expectEncodedChar(parser, "]")
+            set reading = false
+        end
+    end
+
+    return values
+end
+
+fn parseEncodedString(parser) then
+    expectEncodedChar(parser, "\"")
+    set result = ""
+
+    loop parser[1] < len(parser[0]) and parser[0][parser[1]] != "\"" then
+        if parser[0][parser[1]] == "\\" then
+            set parser[1] = parser[1] + 1
+            if parser[1] >= len(parser[0]) then
+                throw "Unfinished escape in encoded string"
+            end
+
+            if parser[0][parser[1]] == "n" then
+                set result = result + "\n"
+            else
+                if parser[0][parser[1]] == "t" then
+                    set result = result + "\t"
+                else
+                    set result = result + parser[0][parser[1]]
+                end
+            end
+        else
+            set result = result + parser[0][parser[1]]
+        end
+
+        set parser[1] = parser[1] + 1
+    end
+
+    expectEncodedChar(parser, "\"")
+    return result
+end
+
+fn parseEncodedAtom(parser) then
+    set value = ""
+
+    loop parser[1] < len(parser[0]) and not isEncodedStop(parser[0][parser[1]]) then
+        set value = value + parser[0][parser[1]]
+        set parser[1] = parser[1] + 1
+    end
+
+    set value = trim(value)
+
+    if value == "null" then
+        return null
+    end
+    if value == "true" then
+        return true
+    end
+    if value == "false" then
+        return false
+    end
+    if value == "" then
+        throw "Expected encoded atom"
+    end
+
+    return num(value)
+end
+
+fn currentEncodedChar(parser) then
+    if parser[1] >= len(parser[0]) then
+        return ""
+    end
+    return parser[0][parser[1]]
+end
+
+fn expectEncodedChar(parser, expected) then
+    if currentEncodedChar(parser) != expected then
+        throw "Expected " + expected + " in encoded value"
+    end
+    set parser[1] = parser[1] + 1
+end
+
+fn skipEncodedSpace(parser) then
+    loop parser[1] < len(parser[0]) and isEncodedSpace(parser[0][parser[1]]) then
+        set parser[1] = parser[1] + 1
+    end
+end
+
+fn isEncodedSpace(ch) then
+    return ch == " " or ch == "\n" or ch == "\t"
+end
+
+fn isEncodedStop(ch) then
+    return ch == "," or ch == "]" or isEncodedSpace(ch)
+end

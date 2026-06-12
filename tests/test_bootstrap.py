@@ -194,6 +194,8 @@ class BootstrapTests(unittest.TestCase):
             self.assertEqual(lines[2], "TOKENS\t34")
             self.assertEqual(lines[4], "FUNCTIONS\t1")
             self.assertTrue(lines[6].startswith("AST_BYTES\t"))
+            self.assertEqual(lines[7], "AST_ROOT\tprogram")
+            self.assertEqual(lines[9], "AST_FUNCTIONS\t1")
 
     def test_dillrexc_reads_artifact_through_self_host_chain(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -216,6 +218,86 @@ class BootstrapTests(unittest.TestCase):
             self.assertEqual(lines[0], f"ARTIFACT\t{output_path}")
             self.assertEqual(lines[2], "TOKENS\t82")
             self.assertEqual(lines[5], "BODY\t10")
+            self.assertEqual(lines[7], "AST_ROOT\tprogram")
+            self.assertEqual(lines[10], "AST_BODY\t10")
+
+    def test_dillrexc_decodes_artifact_ast(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "no_input.drxc"
+
+            self.run_dillrexc("build", "examples/no_input.drx", str(output_path))
+            lines = self.run_dillrexc("decode", str(output_path))
+
+            self.assertEqual(len(lines), 1)
+            program = json.loads(lines[0])
+            self.assertEqual(program[0], "program")
+            self.assertEqual(program[2][0][1], "main")
+
+    def test_dillrexc_decodes_artifact_ast_through_self_host_chain(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "math.drxc"
+
+            self.run_bootstrap(
+                "--quiet",
+                "bootstrap/dillrexc.drx",
+                "build",
+                "examples/math.drx",
+                str(output_path),
+            )
+            lines = self.run_bootstrap(
+                "--quiet",
+                "bootstrap/dillrexc.drx",
+                "decode",
+                str(output_path),
+            )
+
+            self.assertEqual(len(lines), 1)
+            program = json.loads(lines[0])
+            self.assertEqual(program[0], "program")
+            self.assertEqual(len(program[3]), 10)
+
+    def test_dillrexc_runs_artifact(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "no_input.drxc"
+
+            self.run_dillrexc("build", "examples/no_input.drx", str(output_path))
+            lines = self.run_dillrexc("run-artifact", str(output_path))
+
+            self.assertEqual(lines, ["Hello from Dillrex", "x = 0", "x = 1", "x = 2"])
+
+    def test_dillrexc_runs_artifact_with_program_args(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            artifact_path = root / "upper.drxc"
+            input_path = root / "input.txt"
+            output_path = root / "output.txt"
+            input_path.write_text("hello artifact args", encoding="utf-8")
+
+            self.run_dillrexc("build", "examples/upperfile.drx", str(artifact_path))
+            lines = self.run_dillrexc("run-artifact", str(artifact_path), str(input_path), str(output_path))
+
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "HELLO ARTIFACT ARGS")
+            self.assertEqual(lines, [f"Wrote uppercase text to {output_path}"])
+
+    def test_dillrexc_runs_artifact_through_self_host_chain(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "math.drxc"
+
+            self.run_bootstrap(
+                "--quiet",
+                "bootstrap/dillrexc.drx",
+                "build",
+                "examples/math.drx",
+                str(output_path),
+            )
+            lines = self.run_bootstrap(
+                "--quiet",
+                "bootstrap/dillrexc.drx",
+                "run-artifact",
+                str(output_path),
+            )
+
+            self.assertEqual(lines, ["14", "20", "1", "8", "3", "2", "3", "5", "2", "9"])
 
 
 if __name__ == "__main__":

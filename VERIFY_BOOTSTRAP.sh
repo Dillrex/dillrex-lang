@@ -25,6 +25,8 @@ echo "Checking machine-readable bootstrap output modes..."
 "$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx build examples/no_input.drx bootstrap/_verify_no_input.drxc >/dev/null
 test -f bootstrap/_verify_no_input.drxc
 "$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx read bootstrap/_verify_no_input.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx decode bootstrap/_verify_no_input.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx run-artifact bootstrap/_verify_no_input.drxc >/dev/null
 rm -f bootstrap/_verify_no_input.drxc
 
 echo
@@ -37,6 +39,8 @@ echo "Running Dillrex compiler front-end through self-host chain..."
 "$PYTHON_BIN" -m dillrex bootstrap/dillrex-self.drx --quiet bootstrap/dillrexc.drx build examples/math.drx bootstrap/_verify_math.drxc >/dev/null
 test -f bootstrap/_verify_math.drxc
 "$PYTHON_BIN" -m dillrex bootstrap/dillrex-self.drx --quiet bootstrap/dillrexc.drx read bootstrap/_verify_math.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrex-self.drx --quiet bootstrap/dillrexc.drx decode bootstrap/_verify_math.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrex-self.drx --quiet bootstrap/dillrexc.drx run-artifact bootstrap/_verify_math.drxc >/dev/null
 rm -f bootstrap/_verify_math.drxc
 
 echo
