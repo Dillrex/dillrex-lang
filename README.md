@@ -110,7 +110,7 @@ Dillrex currently supports:
 
 Useful built-ins include:
 
-- text: `len`, `upper`, `lower`, `trim`, `contains`, `split`, `replace`
+- text: `len`, `upper`, `lower`, `trim`, `contains`, `split`, `join`, `replace`
 - conversion: `text`, `str`, `num`, `int`, `bool`, `kind`, `type`
 - lists: `push`, `pop`, `remove`
 - files: `read`, `write`, `append`, `exists`, `delete`, `listfiles`
@@ -237,6 +237,18 @@ Build a `.drxc` artifact:
 python -m dillrex bootstrap\dillrexc.drx build examples\no_input.drx build\no_input.drxc
 ```
 
+Build the Dillrex compiler front-end itself:
+
+```powershell
+python -m dillrex bootstrap\dillrexc.drx rebuild-self build\dillrexc.drxc
+```
+
+Run the current self-host smoke test:
+
+```powershell
+python -m dillrex bootstrap\dillrexc.drx smoke-self
+```
+
 Read artifact metadata:
 
 ```powershell
@@ -343,10 +355,15 @@ What works now:
 - Dillrex-written runner works for core programs
 - imports work in the Dillrex-written runner
 - `.drxc` artifacts can be built, read, decoded, and run
+- `.drxc` artifacts bundle imported Dillrex code
+- `dillrexc.drxc` can build another `.drxc` artifact
+- `dillrexc.drx rebuild-self` builds the compiler front-end artifact
+- `dillrexc.drx smoke-self` builds the compiler artifact, uses it to build a program artifact, then runs that program
+- the Python seed runtime handles long logic chains without overflowing the Python stack
 - focused bootstrap tests pass
 
 What is next:
 
-- grow `dillrexc.drx` from front-end into a fuller build tool
+- optimize the second-generation compiler rebuild so `dillrexc.drxc` can rebuild `dillrexc.drx` within normal verification time
 - add simple compile targets after the AST shape settles
 - eventually let the Dillrex-built Dillrex build itself

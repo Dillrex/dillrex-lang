@@ -440,7 +440,7 @@ fn callFunction(program, name, values, env) then
 end
 
 fn isRunnerBuiltin(name) then
-    return name == "print" or name == "ask" or name == "len" or name == "kind" or name == "type" or name == "str" or name == "text" or name == "num" or name == "int" or name == "bool" or name == "upper" or name == "lower" or name == "trim" or name == "contains" or name == "split" or name == "replace" or name == "push" or name == "pop" or name == "remove" or name == "read" or name == "write" or name == "append" or name == "exists" or name == "delete" or name == "listfiles" or name == "round" or name == "floor" or name == "ceil" or name == "abs" or name == "min" or name == "max"
+    return name == "print" or name == "ask" or name == "len" or name == "kind" or name == "type" or name == "str" or name == "text" or name == "num" or name == "int" or name == "bool" or name == "upper" or name == "lower" or name == "trim" or name == "contains" or name == "split" or name == "join" or name == "replace" or name == "push" or name == "pop" or name == "remove" or name == "read" or name == "write" or name == "append" or name == "exists" or name == "delete" or name == "listfiles" or name == "round" or name == "floor" or name == "ceil" or name == "abs" or name == "min" or name == "max"
 end
 
 fn callBuiltin(name, values) then
@@ -486,6 +486,9 @@ fn callBuiltin(name, values) then
     end
     if name == "split" then
         return split(values[0], values[1])
+    end
+    if name == "join" then
+        return builtinJoin(values[0], values[1])
     end
     if name == "replace" then
         return replace(values[0], values[1], values[2])
@@ -581,6 +584,19 @@ fn builtinMax(values) then
         if values[i] > result then
             set result = values[i]
         end
+        set i = i + 1
+    end
+    return result
+end
+
+fn builtinJoin(values, separator) then
+    set result = ""
+    set i = 0
+    loop i < len(values) then
+        if i > 0 then
+            set result = result + separator
+        end
+        set result = result + text(values[i])
         set i = i + 1
     end
     return result

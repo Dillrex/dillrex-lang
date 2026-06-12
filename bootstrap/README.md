@@ -19,12 +19,17 @@ Current stage:
 13. `dillrexc.drx read` validates `.drxc` artifacts and reports their stored metadata.
 14. `dillrexc.drx decode` decodes artifact AST text back into Dillrex lists and re-emits it.
 15. `dillrexc.drx run-artifact` runs `.drxc` artifacts through the Dillrex-built runner.
+16. `dillrexc.drx build-project` builds a simple folder with `dillrex.json`.
+17. `.drxc` artifacts now bundle imported functions and import-time body statements.
+18. `dillrexc.drxc` can build another `.drxc` program artifact.
+19. The Python seed runtime now handles very long Dillrex logic chains without stack overflow.
+20. `dillrexc.drx rebuild-self` and `smoke-self` provide explicit self-build smoke commands.
 
 Planned stages:
 
-1. Add simple compile targets after the AST shape settles.
-2. Grow artifact metadata so imports and source paths are more portable.
-3. Later, the Dillrex-built compiler can build/run itself.
+1. Optimize the second-generation compiler rebuild so `dillrexc.drxc` can rebuild `dillrexc.drx` within normal verification time.
+2. Compare first-generation and second-generation compiler artifacts.
+3. Add simple compile targets after the AST shape settles.
 
 Run the bootstrap checks:
 
@@ -56,6 +61,9 @@ python -m dillrex bootstrap\dillrexc.drx build examples\no_input.drx build\no_in
 python -m dillrex bootstrap\dillrexc.drx read build\no_input.drxc
 python -m dillrex bootstrap\dillrexc.drx decode build\no_input.drxc
 python -m dillrex bootstrap\dillrexc.drx run-artifact build\no_input.drxc
+python -m dillrex bootstrap\dillrexc.drx build-project examples\project-example
+python -m dillrex bootstrap\dillrexc.drx rebuild-self build\dillrexc.drxc
+python -m dillrex bootstrap\dillrexc.drx smoke-self
 ```
 
 That process is called bootstrapping.

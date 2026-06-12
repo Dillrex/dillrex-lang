@@ -7,16 +7,42 @@ import "runner.drx"
 import "compiler-tools.drx"
 
 fn main then
-    if len(args) < 2 then
+    if len(args) < 1 then
         printUsage()
         return
     end
 
     set command = args[0]
+
+    if command == "rebuild-self" then
+        set outputPath = "build/dillrexc.drxc"
+        if len(args) >= 2 then
+            set outputPath = args[1]
+        end
+        buildSourceTo("bootstrap/dillrexc.drx", outputPath)
+        print("REBUILT_SELF\t" + outputPath)
+        return
+    end
+
+    if command == "smoke-self" then
+        smokeSelfCommand()
+        return
+    end
+
+    if len(args) < 2 then
+        printUsage()
+        return
+    end
+
     set sourcePath = args[1]
 
     if command == "read" then
         readArtifactCommand(sourcePath)
+        return
+    end
+
+    if command == "verify" then
+        verifyArtifactCommand(sourcePath)
         return
     end
 
@@ -30,8 +56,18 @@ fn main then
         return
     end
 
+    if command == "build-project" then
+        buildProjectCommand(sourcePath)
+        return
+    end
+
     if not exists(sourcePath) then
         print("Missing file: " + sourcePath)
+        return
+    end
+
+    if command == "run" and endsWith(sourcePath, ".drxc") then
+        runArtifactCommand(sourcePath, argsAfterIndex(args, 2))
         return
     end
 
@@ -55,13 +91,11 @@ fn main then
     end
 
     if command == "build" then
-        if len(args) < 3 then
-            print("Usage: dillrex bootstrap/dillrexc.drx build file.drx output.drxc")
-            return
+        set outputPath = defaultOutputPath(sourcePath)
+        if len(args) >= 3 then
+            set outputPath = args[2]
         end
-
-        set outputPath = args[2]
-        write(outputPath, buildArtifact(sourcePath, tokens, program))
+        write(outputPath, buildArtifact(sourcePath, tokens, program, bundleProgram(sourcePath, program)))
         print("BUILT\t" + outputPath)
         return
     end
@@ -77,21 +111,86 @@ end
 
 fn printUsage() then
     print("Usage: dillrex bootstrap/dillrexc.drx run|tokens|ast|check file.drx")
-    print("       dillrex bootstrap/dillrexc.drx build file.drx output.drxc")
-    print("       dillrex bootstrap/dillrexc.drx read artifact.drxc")
+    print("       dillrex bootstrap/dillrexc.drx build file.drx [output.drxc]")
+    print("       dillrex bootstrap/dillrexc.drx read|verify artifact.drxc")
     print("       dillrex bootstrap/dillrexc.drx decode artifact.drxc")
     print("       dillrex bootstrap/dillrexc.drx run-artifact artifact.drxc")
+    print("       dillrex bootstrap/dillrexc.drx build-project project-folder")
+    print("       dillrex bootstrap/dillrexc.drx rebuild-self [output.drxc]")
+    print("       dillrex bootstrap/dillrexc.drx smoke-self")
 end
 
-fn buildArtifact(sourcePath, tokens, program) then
-    set text = "DILLREX-COMPILED\t0.1\n"
+fn buildSourceTo(sourcePath, outputPath) then
+    if not exists(sourcePath) then
+        throw "Missing file: " + sourcePath
+    end
+    set source = read(sourcePath)
+    set tokens = scanTokens(source)
+    set program = parseProgram(tokens)
+    write(outputPath, buildArtifact(sourcePath, tokens, program, bundleProgram(sourcePath, program)))
+end
+
+fn smokeSelfCommand() then
+    set compilerPath = "build/dillrexc.drxc"
+    set smokePath = "build/self-smoke.drxc"
+    buildSourceTo("bootstrap/dillrexc.drx", compilerPath)
+    runArtifactCommand(compilerPath, ["build", "examples/no_input.drx", smokePath])
+    runArtifactCommand(smokePath, [])
+end
+
+fn buildArtifact(sourcePath, tokens, program, bundledProgram) then
+    set text = "DILLREX-COMPILED\t0.2\n"
+    set text = text + "FORMAT\tast-text\n"
     set text = text + "SOURCE\t" + quoteText(sourcePath) + "\n"
+    set text = text + "SOURCE_DIR\t" + quoteText(dirName(sourcePath)) + "\n"
     set text = text + "TOKENS\t" + len(tokens) + "\n"
     set text = text + "IMPORTS\t" + len(program[1]) + "\n"
-    set text = text + "FUNCTIONS\t" + len(program[2]) + "\n"
-    set text = text + "BODY\t" + len(program[3]) + "\n"
-    set text = text + "AST\t" + encodeValue(program) + "\n"
+    set text = text + "FUNCTIONS\t" + len(bundledProgram[2]) + "\n"
+    set text = text + "BODY\t" + len(bundledProgram[3]) + "\n"
+    set text = text + "AST\t" + encodeValue(bundledProgram) + "\n"
     return text
+end
+
+fn defaultOutputPath(sourcePath) then
+    return "build/" + fileStem(sourcePath) + ".drxc"
+end
+
+fn bundleProgram(sourcePath, program) then
+    set bundled = ["program", [], [], []]
+    set loaded = []
+    bundleImportsInto(program, dirName(sourcePath), loaded, bundled)
+    mergeFunctions(bundled, program[2])
+    appendStatements(bundled[3], program[3])
+    return bundled
+end
+
+fn bundleImportsInto(program, baseDir, loaded, bundled) then
+    set imports = program[1]
+    set i = 0
+
+    loop i < len(imports) then
+        set importPath = resolveImportPath(baseDir, imports[i])
+        if not listContains(loaded, importPath) then
+            if not exists(importPath) then
+                throw "Could not find imported file " + imports[i]
+            end
+
+            push(loaded, importPath)
+            set importedProgram = parseProgram(scanTokens(read(importPath)))
+            bundleImportsInto(importedProgram, dirName(importPath), loaded, bundled)
+            mergeFunctions(bundled, importedProgram[2])
+            appendStatements(bundled[3], importedProgram[3])
+        end
+        set i = i + 1
+    end
+end
+
+fn appendStatements(target, statements) then
+    set i = 0
+    loop i < len(statements) then
+        push(target, statements[i])
+        set i = i + 1
+    end
 end
 
 fn readArtifactCommand(path) then
@@ -101,16 +200,18 @@ fn readArtifactCommand(path) then
     end
 
     set lines = readArtifactLines(path)
-    set source = lineValue(lines, 1, "SOURCE")
-    set tokens = lineValue(lines, 2, "TOKENS")
-    set imports = lineValue(lines, 3, "IMPORTS")
-    set functions = lineValue(lines, 4, "FUNCTIONS")
-    set body = lineValue(lines, 5, "BODY")
-    set ast = lineValue(lines, 6, "AST")
+    set source = artifactValue(lines, "SOURCE")
+    set sourceDir = artifactValue(lines, "SOURCE_DIR")
+    set tokens = artifactValue(lines, "TOKENS")
+    set imports = artifactValue(lines, "IMPORTS")
+    set functions = artifactValue(lines, "FUNCTIONS")
+    set body = artifactValue(lines, "BODY")
+    set ast = artifactValue(lines, "AST")
     set program = decodeValue(ast)
 
     print("ARTIFACT\t" + path)
     print("SOURCE\t" + source)
+    print("SOURCE_DIR\t" + sourceDir)
     print("TOKENS\t" + tokens)
     print("IMPORTS\t" + imports)
     print("FUNCTIONS\t" + functions)
@@ -122,6 +223,43 @@ fn readArtifactCommand(path) then
     print("AST_BODY\t" + len(program[3]))
 end
 
+fn verifyArtifactCommand(path) then
+    if not exists(path) then
+        print("Missing file: " + path)
+        return
+    end
+
+    set lines = readArtifactLines(path)
+    set program = decodeValue(artifactValue(lines, "AST"))
+    print("VERIFY\tOK\t" + path + "\t" + program[0] + "\t" + len(program[2]) + "\t" + len(program[3]))
+end
+
+fn buildProjectCommand(projectPath) then
+    set configPath = resolveImportPath(projectPath, "dillrex.json")
+    if not exists(configPath) then
+        print("Missing file: " + configPath)
+        return
+    end
+
+    set config = read(configPath)
+    set name = jsonStringValue(config, "name", fileName(projectPath))
+    set main = jsonStringValue(config, "main", "main.drx")
+    set buildFolder = jsonStringValue(config, "build", "build")
+    set sourcePath = resolveImportPath(projectPath, main)
+    set outputPath = resolveImportPath(projectPath, buildFolder + "/" + name + ".drxc")
+
+    if not exists(sourcePath) then
+        print("Missing file: " + sourcePath)
+        return
+    end
+
+    set source = read(sourcePath)
+    set tokens = scanTokens(source)
+    set program = parseProgram(tokens)
+    write(outputPath, buildArtifact(sourcePath, tokens, program, bundleProgram(sourcePath, program)))
+    print("BUILT_PROJECT\t" + outputPath)
+end
+
 fn decodeArtifactCommand(path) then
     if not exists(path) then
         print("Missing file: " + path)
@@ -129,7 +267,7 @@ fn decodeArtifactCommand(path) then
     end
 
     set lines = readArtifactLines(path)
-    set ast = lineValue(lines, 6, "AST")
+    set ast = artifactValue(lines, "AST")
     print(encodeValue(decodeValue(ast)))
 end
 
@@ -140,18 +278,113 @@ fn runArtifactCommand(path, runArgs) then
     end
 
     set lines = readArtifactLines(path)
-    set sourcePath = decodeValue(lineValue(lines, 1, "SOURCE"))
-    set program = decodeValue(lineValue(lines, 6, "AST"))
+    set sourcePath = decodeValue(artifactValue(lines, "SOURCE"))
+    set program = decodeValue(artifactValue(lines, "AST"))
     runProgram(program, runArgs, sourcePath)
 end
 
 fn readArtifactLines(path) then
     set lines = split(trim(read(path)), "\n")
     set header = lineAt(lines, 0, "Missing artifact header")
-    if header != "DILLREX-COMPILED\t0.1" then
+    if header != "DILLREX-COMPILED\t0.1" and header != "DILLREX-COMPILED\t0.2" then
         throw "Invalid artifact header"
     end
     return lines
+end
+
+fn artifactValue(lines, name) then
+    set i = 1
+    loop i < len(lines) then
+        if fieldAt(lines[i], 0, "Invalid artifact line") == name then
+            return fieldAt(lines[i], 1, "Missing " + name + " value")
+        end
+        set i = i + 1
+    end
+
+    if name == "SOURCE_DIR" then
+        return quoteText(dirName(decodeValue(artifactValue(lines, "SOURCE"))))
+    end
+
+    throw "Missing " + name + " line"
+end
+
+fn fileName(path) then
+    set last = -1
+    set i = 0
+    loop i < len(path) then
+        if path[i] == "/" or path[i] == "\\" then
+            set last = i
+        end
+        set i = i + 1
+    end
+    return textRange(path, last + 1, len(path))
+end
+
+fn fileStem(path) then
+    set name = fileName(path)
+    set lastDot = -1
+    set i = 0
+    loop i < len(name) then
+        if name[i] == "." then
+            set lastDot = i
+        end
+        set i = i + 1
+    end
+    if lastDot < 0 then
+        return name
+    end
+    return textRange(name, 0, lastDot)
+end
+
+fn endsWith(value, suffix) then
+    if len(value) < len(suffix) then
+        return false
+    end
+    return textRange(value, len(value) - len(suffix), len(value)) == suffix
+end
+
+fn jsonStringValue(textValue, key, fallback) then
+    set pattern = "\"" + key + "\""
+    set keyIndex = textIndex(textValue, pattern)
+    if keyIndex < 0 then
+        return fallback
+    end
+
+    set colonIndex = textIndexFrom(textValue, ":", keyIndex + len(pattern))
+    if colonIndex < 0 then
+        return fallback
+    end
+
+    set quoteIndex = textIndexFrom(textValue, "\"", colonIndex + 1)
+    if quoteIndex < 0 then
+        return fallback
+    end
+
+    set endIndex = quoteIndex + 1
+    loop endIndex < len(textValue) and textValue[endIndex] != "\"" then
+        set endIndex = endIndex + 1
+    end
+
+    if endIndex >= len(textValue) then
+        return fallback
+    end
+
+    return textRange(textValue, quoteIndex + 1, endIndex)
+end
+
+fn textIndex(value, search) then
+    return textIndexFrom(value, search, 0)
+end
+
+fn textIndexFrom(value, search, start) then
+    set i = start
+    loop i <= len(value) - len(search) then
+        if textRange(value, i, i + len(search)) == search then
+            return i
+        end
+        set i = i + 1
+    end
+    return -1
 end
 
 main()

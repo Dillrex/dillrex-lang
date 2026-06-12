@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import math
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+sys.setrecursionlimit(max(sys.getrecursionlimit(), 20_000))
 
 
 class DillrexError(Exception):
@@ -385,6 +388,7 @@ class Interpreter:
             "trim": lambda value: self.to_text(value).strip(),
             "contains": lambda value, search: self.to_text(search) in self.to_text(value),
             "split": lambda value, separator: self.to_text(value).split(self.to_text(separator)),
+            "join": lambda values, separator: self.to_text(separator).join(self.to_text(value) for value in values),
             "replace": lambda value, old, new: self.to_text(value).replace(self.to_text(old), self.to_text(new)),
             "push": self.list_push,
             "pop": self.list_pop,
@@ -548,18 +552,36 @@ class Interpreter:
             return -value
         if kind == "logic":
             _, operator, left_expr, right_expr = expr
-            left = self.evaluate(left_expr, variables)
-            if operator == "and":
-                return self.to_bool(left) and self.to_bool(self.evaluate(right_expr, variables))
-            if operator == "or":
-                return self.to_bool(left) or self.to_bool(self.evaluate(right_expr, variables))
-            raise DillrexError(f"Unknown logic operator {operator}.")
+            return self.evaluate_logic(operator, left_expr, right_expr, variables)
         if kind == "binary":
             _, operator, left_expr, right_expr = expr
             left = self.evaluate(left_expr, variables)
             right = self.evaluate(right_expr, variables)
             return self.apply_operator(operator, left, right)
         raise DillrexError(f"Unknown expression {kind}.")
+
+    def evaluate_logic(self, operator: str, left_expr: Any, right_expr: Any, variables: dict[str, Any]) -> bool:
+        if operator not in {"and", "or"}:
+            raise DillrexError(f"Unknown logic operator {operator}.")
+
+        operands = [right_expr]
+        current = left_expr
+        while current[0] == "logic" and current[1] == operator:
+            operands.append(current[3])
+            current = current[2]
+        operands.append(current)
+        operands.reverse()
+
+        if operator == "and":
+            for operand in operands:
+                if not self.to_bool(self.evaluate(operand, variables)):
+                    return False
+            return True
+
+        for operand in operands:
+            if self.to_bool(self.evaluate(operand, variables)):
+                return True
+        return False
 
     def list_push(self, values: Any, value: Any) -> None:
         values.append(value)

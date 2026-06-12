@@ -44,4 +44,16 @@ test -f bootstrap/_verify_math.drxc
 rm -f bootstrap/_verify_math.drxc
 
 echo
+echo "Checking compiled compiler artifact..."
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx build bootstrap/dillrexc.drx bootstrap/_verify_dillrexc.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx run-artifact bootstrap/_verify_dillrexc.drxc build examples/no_input.drx bootstrap/_verify_compiled_output.drxc >/dev/null
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx run-artifact bootstrap/_verify_compiled_output.drxc >/dev/null
+rm -f bootstrap/_verify_dillrexc.drxc bootstrap/_verify_compiled_output.drxc
+
+echo
+echo "Running self compiler smoke command..."
+"$PYTHON_BIN" -m dillrex bootstrap/dillrexc.drx smoke-self >/dev/null
+rm -f build/dillrexc.drxc build/self-smoke.drxc
+
+echo
 echo "Bootstrap verification OK."

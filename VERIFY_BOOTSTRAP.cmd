@@ -66,4 +66,22 @@ if errorlevel 1 exit /b 1
 del bootstrap\_verify_math.drxc
 
 echo.
+echo Checking compiled compiler artifact...
+"%PY%" -m dillrex bootstrap\dillrexc.drx build bootstrap\dillrexc.drx bootstrap\_verify_dillrexc.drxc >nul
+if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrexc.drx run-artifact bootstrap\_verify_dillrexc.drxc build examples\no_input.drx bootstrap\_verify_compiled_output.drxc >nul
+if errorlevel 1 exit /b 1
+"%PY%" -m dillrex bootstrap\dillrexc.drx run-artifact bootstrap\_verify_compiled_output.drxc >nul
+if errorlevel 1 exit /b 1
+del bootstrap\_verify_dillrexc.drxc
+del bootstrap\_verify_compiled_output.drxc
+
+echo.
+echo Running self compiler smoke command...
+"%PY%" -m dillrex bootstrap\dillrexc.drx smoke-self >nul
+if errorlevel 1 exit /b 1
+if exist build\dillrexc.drxc del build\dillrexc.drxc
+if exist build\self-smoke.drxc del build\self-smoke.drxc
+
+echo.
 echo Bootstrap verification OK.

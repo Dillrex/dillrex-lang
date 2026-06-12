@@ -85,6 +85,26 @@ class DillrexRuntimeTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue().splitlines(), ["Allowed", "Logic works"])
 
+    def test_long_logic_chains_do_not_overflow_python_stack(self):
+        output = io.StringIO()
+        long_or = " or ".join(["false"] * 1500 + ["true"])
+        long_and = " and ".join(["true"] * 1500 + ["false"])
+
+        with contextlib.redirect_stdout(output):
+            run_source(
+                f"""
+                if {long_or} then
+                    print("long or works")
+                end
+
+                if not ({long_and}) then
+                    print("long and works")
+                end
+                """
+            )
+
+        self.assertEqual(output.getvalue().splitlines(), ["long or works", "long and works"])
+
     def test_math_operators_and_helpers(self):
         output = io.StringIO()
 
@@ -151,13 +171,14 @@ class DillrexRuntimeTests(unittest.TestCase):
                 print(tools[1])
                 print(contains("hello", "ell"))
                 print(split("a,b,c", ",")[2])
+                print(join(["a", "b", "c"], "-"))
                 print(replace("hi bob", "bob", "Dylan"))
                 """
             )
 
         self.assertEqual(
             output.getvalue().splitlines(),
-            ["3", "scanner", "ANTENNA", "true", "c", "hi Dylan"],
+            ["3", "scanner", "ANTENNA", "true", "c", "a-b-c", "hi Dylan"],
         )
 
     def test_files_imports_args_and_try_catch(self):

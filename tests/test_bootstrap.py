@@ -159,11 +159,13 @@ class BootstrapTests(unittest.TestCase):
 
             artifact = output_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines, [f"BUILT\t{output_path}"])
-            self.assertEqual(artifact[0], "DILLREX-COMPILED\t0.1")
-            self.assertEqual(artifact[1], 'SOURCE\t"examples/no_input.drx"')
-            self.assertEqual(artifact[2], "TOKENS\t34")
-            self.assertEqual(artifact[5], "BODY\t1")
-            self.assertEqual(json.loads(artifact[6].removeprefix("AST\t"))[2][0][1], "main")
+            self.assertEqual(artifact[0], "DILLREX-COMPILED\t0.2")
+            self.assertEqual(artifact[1], "FORMAT\tast-text")
+            self.assertEqual(artifact[2], 'SOURCE\t"examples/no_input.drx"')
+            self.assertEqual(artifact[3], 'SOURCE_DIR\t"examples"')
+            self.assertEqual(artifact[4], "TOKENS\t34")
+            self.assertEqual(artifact[7], "BODY\t1")
+            self.assertEqual(json.loads(artifact[8].removeprefix("AST\t"))[2][0][1], "main")
 
     def test_dillrexc_build_runs_through_self_host_chain(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -179,8 +181,8 @@ class BootstrapTests(unittest.TestCase):
 
             artifact = output_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines, [f"BUILT\t{output_path}"])
-            self.assertEqual(artifact[0], "DILLREX-COMPILED\t0.1")
-            self.assertEqual(artifact[2], "TOKENS\t82")
+            self.assertEqual(artifact[0], "DILLREX-COMPILED\t0.2")
+            self.assertEqual(artifact[4], "TOKENS\t82")
 
     def test_dillrexc_reads_artifact_metadata(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -191,11 +193,12 @@ class BootstrapTests(unittest.TestCase):
 
             self.assertEqual(lines[0], f"ARTIFACT\t{output_path}")
             self.assertEqual(lines[1], 'SOURCE\t"examples/no_input.drx"')
-            self.assertEqual(lines[2], "TOKENS\t34")
-            self.assertEqual(lines[4], "FUNCTIONS\t1")
-            self.assertTrue(lines[6].startswith("AST_BYTES\t"))
-            self.assertEqual(lines[7], "AST_ROOT\tprogram")
-            self.assertEqual(lines[9], "AST_FUNCTIONS\t1")
+            self.assertEqual(lines[2], 'SOURCE_DIR\t"examples"')
+            self.assertEqual(lines[3], "TOKENS\t34")
+            self.assertEqual(lines[5], "FUNCTIONS\t1")
+            self.assertTrue(lines[7].startswith("AST_BYTES\t"))
+            self.assertEqual(lines[8], "AST_ROOT\tprogram")
+            self.assertEqual(lines[10], "AST_FUNCTIONS\t1")
 
     def test_dillrexc_reads_artifact_through_self_host_chain(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -216,10 +219,10 @@ class BootstrapTests(unittest.TestCase):
             )
 
             self.assertEqual(lines[0], f"ARTIFACT\t{output_path}")
-            self.assertEqual(lines[2], "TOKENS\t82")
-            self.assertEqual(lines[5], "BODY\t10")
-            self.assertEqual(lines[7], "AST_ROOT\tprogram")
-            self.assertEqual(lines[10], "AST_BODY\t10")
+            self.assertEqual(lines[3], "TOKENS\t82")
+            self.assertEqual(lines[6], "BODY\t10")
+            self.assertEqual(lines[8], "AST_ROOT\tprogram")
+            self.assertEqual(lines[11], "AST_BODY\t10")
 
     def test_dillrexc_decodes_artifact_ast(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -298,6 +301,150 @@ class BootstrapTests(unittest.TestCase):
             )
 
             self.assertEqual(lines, ["14", "20", "1", "8", "3", "2", "3", "5", "2", "9"])
+
+    def test_dillrexc_artifact_bundles_imports(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tools = root / "tools.drx"
+            main = root / "main.drx"
+            artifact = root / "main.drxc"
+            tools.write_text(
+                """
+                fn double(x) then
+                    return x * 2
+                end
+                """,
+                encoding="utf-8",
+            )
+            main.write_text(
+                """
+                import "tools.drx"
+                print(double(9))
+                """,
+                encoding="utf-8",
+            )
+
+            self.run_dillrexc("build", str(main), str(artifact))
+            tools.unlink()
+            lines = self.run_dillrexc("run-artifact", str(artifact))
+
+            self.assertEqual(lines, ["18"])
+
+    def test_dillrexc_run_accepts_artifacts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder) / "no_input.drxc"
+
+            self.run_dillrexc("build", "examples/no_input.drx", str(artifact))
+            lines = self.run_dillrexc("run", str(artifact))
+
+            self.assertEqual(lines, ["Hello from Dillrex", "x = 0", "x = 1", "x = 2"])
+
+    def test_dillrexc_build_project_outputs_runnable_artifact(self):
+        with tempfile.TemporaryDirectory() as folder:
+            project = Path(folder) / "demo"
+            project.mkdir()
+            (project / "dillrex.json").write_text(
+                """
+                {
+                  "name": "demo",
+                  "main": "main.drx",
+                  "build": "out"
+                }
+                """,
+                encoding="utf-8",
+            )
+            (project / "main.drx").write_text('print("project artifact")', encoding="utf-8")
+            artifact = project / "out" / "demo.drxc"
+
+            lines = self.run_dillrexc("build-project", str(project))
+            run_lines = self.run_dillrexc("run", str(artifact))
+
+            self.assertEqual(len(lines), 1)
+            self.assertTrue(lines[0].startswith("BUILT_PROJECT\t"))
+            self.assertTrue(artifact.exists())
+            self.assertEqual(run_lines, ["project artifact"])
+
+    def test_dillrexc_build_uses_default_output_path(self):
+        output_path = ROOT / "build" / "no_input.drxc"
+        if output_path.exists():
+            output_path.unlink()
+
+        try:
+            lines = self.run_dillrexc("build", "examples/no_input.drx")
+
+            self.assertEqual(lines, ["BUILT\tbuild/no_input.drxc"])
+            self.assertTrue(output_path.exists())
+            self.assertEqual(output_path.read_text(encoding="utf-8").splitlines()[0], "DILLREX-COMPILED\t0.2")
+        finally:
+            if output_path.exists():
+                output_path.unlink()
+
+    def test_dillrexc_verifies_artifact(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "no_input.drxc"
+
+            self.run_dillrexc("build", "examples/no_input.drx", str(output_path))
+            lines = self.run_dillrexc("verify", str(output_path))
+
+            self.assertEqual(lines, [f"VERIFY\tOK\t{output_path}\tprogram\t1\t1"])
+
+    def test_compiled_dillrexc_artifact_builds_another_program(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            compiler_artifact = root / "dillrexc.drxc"
+            built_program = root / "no_input.drxc"
+
+            self.run_dillrexc("build", "bootstrap/dillrexc.drx", str(compiler_artifact))
+            build_lines = self.run_dillrexc(
+                "run-artifact",
+                str(compiler_artifact),
+                "build",
+                "examples/no_input.drx",
+                str(built_program),
+            )
+            run_lines = self.run_dillrexc("run-artifact", str(built_program))
+
+            self.assertEqual(build_lines, [f"BUILT\t{built_program}"])
+            self.assertEqual(run_lines, ["Hello from Dillrex", "x = 0", "x = 1", "x = 2"])
+
+    def test_dillrexc_rebuild_self_command(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output_path = Path(folder) / "dillrexc.drxc"
+
+            lines = self.run_dillrexc("rebuild-self", str(output_path))
+            verify_lines = self.run_dillrexc("verify", str(output_path))
+
+            self.assertEqual(lines, [f"REBUILT_SELF\t{output_path}"])
+            self.assertEqual(len(verify_lines), 1)
+            self.assertTrue(verify_lines[0].startswith(f"VERIFY\tOK\t{output_path}\tprogram\t"))
+            self.assertTrue(verify_lines[0].endswith("\t1"))
+
+    def test_dillrexc_smoke_self_command(self):
+        compiler_path = ROOT / "build" / "dillrexc.drxc"
+        smoke_path = ROOT / "build" / "self-smoke.drxc"
+        for path in [compiler_path, smoke_path]:
+            if path.exists():
+                path.unlink()
+
+        try:
+            lines = self.run_dillrexc("smoke-self")
+
+            self.assertEqual(
+                lines,
+                [
+                    "BUILT\tbuild/self-smoke.drxc",
+                    "Hello from Dillrex",
+                    "x = 0",
+                    "x = 1",
+                    "x = 2",
+                ],
+            )
+            self.assertTrue(compiler_path.exists())
+            self.assertTrue(smoke_path.exists())
+        finally:
+            for path in [compiler_path, smoke_path]:
+                if path.exists():
+                    path.unlink()
 
 
 if __name__ == "__main__":

@@ -20,28 +20,37 @@ fn printTokens(tokens) then
 end
 
 fn encodeValue(value) then
+    set chunks = []
+    encodeValueInto(value, chunks)
+    return join(chunks, "")
+end
+
+fn encodeValueInto(value, chunks) then
     if kind(value) == "list" then
-        set result = "["
+        push(chunks, "[")
         set i = 0
         loop i < len(value) then
             if i > 0 then
-                set result = result + ","
+                push(chunks, ",")
             end
-            set result = result + encodeValue(value[i])
+            encodeValueInto(value[i], chunks)
             set i = i + 1
         end
-        return result + "]"
+        push(chunks, "]")
+        return
     end
 
     if kind(value) == "text" then
-        return quoteText(value)
+        push(chunks, quoteText(value))
+        return
     end
 
     if value == null then
-        return "null"
+        push(chunks, "null")
+        return
     end
 
-    return text(value)
+    push(chunks, text(value))
 end
 
 fn quoteText(value) then
