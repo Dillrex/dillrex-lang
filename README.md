@@ -313,7 +313,10 @@ Run only bootstrap tests:
 python -m unittest tests.test_bootstrap
 ```
 
+<<<<<<< HEAD
 Run the one-command bootstrap verifier:
+=======
+>>>>>>> 57c615ae933240fa04b82892f8fe71776e1160ea
 
 ```powershell
 VERIFY_BOOTSTRAP.cmd
