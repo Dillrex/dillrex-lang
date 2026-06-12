@@ -2,44 +2,67 @@
 
 ![Dillrex icon](assets/dillrex-icon.png)
 
-Dillrex is a small Python-powered programming language experiment.
+Dillrex is a custom programming language with `.drx` files and its own terminal app.
+Python currently powers the interpreter, but Dillrex code is parsed and run by the Dillrex runtime.
 
-The first version supports:
+## Syntax
 
-- `print("hello")`
-- `name = in("Name: ")`
-- `name = "Dylan"`
-- `if condition { ... } else { ... }`
-- `loop condition { ... }`
-- `fn main() { ... }`
-- `# comments`
+```drx
+# comment
 
-## Example
+set x = 10
+set name = ask("Name: ")
 
-```dillrex
-# My first Dillrex program
+print("Hello")
+print(x)
 
-fn main() {
-    name = in("Name: ")
+if x > 5 then
+    print("big")
+else
+    print("small")
+end
 
-    if name == "Dylan" {
-        print("Welcome back Dylan")
-    } else {
-        print("Hello " + name)
-    }
+loop x < 20 then
+    print(x)
+    set x = x + 1
+end
 
-    x = 0
-    loop x < 5 {
-        print(x)
-        x = x + 1
-    }
-}
+fn add(a, b) then
+    return a + b
+end
+
+set total = add(2, 3)
+print(total)
 ```
+
+## Keywords
+
+| Idea | Dillrex |
+| --- | --- |
+| Print | `print` |
+| Input | `ask` |
+| Variable | `set` |
+| If | `if` |
+| Start block | `then` |
+| Else | `else` |
+| End block | `end` |
+| While loop | `loop` |
+| Function | `fn` |
+| Return | `return` |
+| Import | `import` |
+| Comment | `#` |
+| Empty value | `null` |
 
 ## Run
 
 ```powershell
 python -m dillrex run examples\hello.drx
+```
+
+Pass command-line args:
+
+```powershell
+python -m dillrex run examples\upperfile.drx input.txt output.txt
 ```
 
 On Linux:
@@ -52,129 +75,126 @@ python3 -m dillrex run examples/hello.drx
 
 ### Windows
 
-For the custom Windows terminal app, double-click:
+Double-click:
 
 ```text
 START_DILLREX_TERMINAL.vbs
 ```
 
-This opens the Dillrex window without leaving command windows behind.
-
-You can also run it from PowerShell:
+Or run:
 
 ```powershell
 py -m dillrex.terminal_app
 ```
 
-If `py` is not available:
-
-```powershell
-python -m dillrex.terminal_app
-```
-
 ### Linux
-
-From the cloned repo folder:
 
 ```bash
 chmod +x START_DILLREX_TERMINAL.sh
 ./START_DILLREX_TERMINAL.sh
 ```
 
-Or run it directly:
-
-```bash
-python3 -m dillrex.terminal_app
-```
-
-Linux needs Python with Tkinter installed. On many distros that package is called `python3-tk`.
-
-Inside the Dillrex Terminal, type directly after the `dillrex>` prompt. Create and run `.dillrex`
-files like this:
+Inside the Dillrex Terminal:
 
 ```text
-new hello.dillrex
-run hello.dillrex
+new main.drx
+run main.drx
 ```
 
-`new` can create whatever extension you type:
+## Full Example
 
-```text
-new notes.txt
-new app.dillrex
-new script.bat
-new page.html
+```drx
+# Dillrex first test program
+
+fn main then
+    print("Welcome to Dillrex")
+
+    set name = ask("Name: ")
+    set age = ask("Age: ")
+
+    print("Hello " + name)
+
+    if age >= 18 then
+        print("You are an adult")
+    else
+        print("You are not an adult")
+    end
+
+    set count = 1
+
+    loop count <= 5 then
+        print("Count: " + count)
+        set count = count + 1
+    end
+
+    set answer = add(10, 5)
+    print("10 + 5 = " + answer)
+end
+
+fn add(a, b) then
+    return a + b
+end
+
+main()
 ```
 
-Create a full Dillrex project:
+## Lists, Files, And Args
 
-```text
-project new my-app
-project run
+```drx
+set names = ["Dylan", "Max"]
+push(names, "Sam")
+print(names[0])
+
+print(args[0])
+
+if exists("notes.txt") then
+    set text = read("notes.txt")
+    write("copy.txt", upper(text))
+end
 ```
 
-A project looks like:
+## Imports
 
-```text
-my-app/
-  main.dillrex
-  dillrex.json
-  src/
-  assets/
-  build/
+```drx
+import "tools.drx"
+
+set result = double(10)
+print(result)
 ```
 
-It also supports common terminal commands like:
+## Bootstrap
 
-```text
-ls
-dir
-cd examples
-pwd
-mkdir projects
-touch notes.txt
-cat notes.txt
-dillrex code print("hello")
-clear
-exit
-```
-
-Autocomplete works like a normal terminal:
-
-```text
-Tab       completes the current command or file name
-Tab Tab   shows matching options when there are several
-```
-
-The older command-line shell still works too:
+The `bootstrap/` folder starts the path toward Dillrex building itself.
 
 ```powershell
-python -m dillrex shell
+python -m dillrex run bootstrap\dillrex-self.drx examples\no_input.drx
 ```
 
-On Linux:
+The bootstrap now includes Dillrex-written lexer, parser, and runner pieces. To run
+the focused self-host checks:
 
-```bash
-python3 -m dillrex shell
+```powershell
+VERIFY_BOOTSTRAP.cmd
 ```
 
-The terminal icon lives at `assets/dillrex-icon.png`, with a Windows `.ico` version at
-`assets/dillrex-icon.ico`.
+Inspect the compiler pipeline without running the program:
 
-## Variables
-
-Dillrex variables use simple assignment:
-
-```dillrex
-name = "Dylan"
-age = 21
-print("Hello " + name)
+```powershell
+python -m dillrex bootstrap\dillrex-self.drx --tokens examples\no_input.drx
+python -m dillrex bootstrap\dillrex-self.drx --ast examples\no_input.drx
 ```
 
-Use `name = value`, not `set name = value`.
+Use the Dillrex-written compiler front-end:
+
+```powershell
+python -m dillrex bootstrap\dillrexc.drx check examples\no_input.drx
+python -m dillrex bootstrap\dillrexc.drx run examples\no_input.drx
+python -m dillrex bootstrap\dillrexc.drx build examples\no_input.drx build\no_input.drxc
+python -m dillrex bootstrap\dillrexc.drx read build\no_input.drxc
+```
 
 ## Tests
 
 ```bash
-python -m unittest tests.test_dillrex
+python -m unittest discover -s tests
 ```

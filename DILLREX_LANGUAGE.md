@@ -1,102 +1,72 @@
 # Dillrex Language
 
-![Dillrex icon](assets/dillrex-icon.png)
+## File Extension
 
-Dillrex is a small Python-powered programming language experiment.
-
-Current syntax:
-
-| Idea | Dillrex |
-| --- | --- |
-| Print text | `print("hello")` |
-| Ask for input | `name = in("Name: ")` |
-| If | `if name == "Dylan" { ... }` |
-| Else | `else { ... }` |
-| Loop | `loop x < 5 { ... }` |
-| Function | `fn main() { ... }` |
-| Comment | `# comment` |
-
-## Run A Program
-
-From this folder:
-
-```powershell
-.\.venv\Scripts\python.exe -m dillrex run examples\hello.drx
-```
-
-If that virtual environment is not available, use your normal Python install:
-
-```powershell
-python -m dillrex run examples\hello.drx
-```
-
-On Windows, you can also double-click:
+Dillrex programs use `.drx`.
 
 ```text
-RUN_DILLREX_EXAMPLE.cmd
+main.drx
 ```
 
-## Open The Dillrex Terminal
+## Blocks
 
-```powershell
-.\.venv\Scripts\python.exe -m dillrex shell
+Dillrex uses `then` and `end` instead of curly braces.
+
+```drx
+if age >= 18 then
+    print("Allowed")
+end
 ```
 
-On Windows, you can also double-click:
+## Final Syntax Sheet
 
-```text
-DILLREX_TERMINAL.cmd
+```drx
+# comment
+
+import "tools.drx"
+
+set x = 10
+set name = ask("Name: ")
+set nums = [1, 2, 3]
+push(nums, 4)
+
+print("Hello")
+print(x)
+print(nums[0])
+
+if x > 5 then
+    print("big")
+else
+    print("small")
+end
+
+loop x < 20 then
+    print(x)
+    set x = x + 1
+end
+
+fn add(a, b) then
+    return a + b
+end
+
+set total = add(2, 3)
+print(total)
+
+if exists("input.txt") then
+    set text = read("input.txt")
+    write("output.txt", upper(text))
+end
 ```
 
-Then type one-line Dillrex commands:
+## Bootstrapping Plan
 
-```dillrex
-print("hello world")
-```
+The first Dillrex runtime is written in Python so the language has something to run on.
+The next goal is to write a second interpreter/compiler in `.drx`.
 
-Press Enter on a blank line to run them.
+Stages:
 
-## Terminal Icon
-
-Use `assets/dillrex-icon.png` for the custom Dillrex terminal design. Windows builds can use
-`assets/dillrex-icon.ico`.
-
-## Run Tests
-
-```powershell
-python -m unittest tests.test_dillrex
-```
-
-## Example
-
-```dillrex
-# My first Dillrex program
-
-fn main() {
-    name = in("Name: ")
-
-    if name == "Dylan" {
-        print("Welcome back Dylan")
-    } else {
-        print("Hello " + name)
-    }
-
-    x = 0
-    loop x < 5 {
-        print(x)
-        x = x + 1
-    }
-}
-```
-
-## GitHub Notes
-
-This folder is ready to be added to a GitHub repository. For the first public Dillrex language repo,
-keep these files:
-
-- `dillrex/`
-- `examples/`
-- `tests/`
-- `DILLREX_LANGUAGE.md`
-
-The rest of this workspace contains the existing Dillrex Scanner CAD app.
+1. Python runs `.drx` files.
+2. `.drx` tools read source files, split text, and build token lists.
+3. `.drx` parser and runner are added under `bootstrap/`.
+4. Python only runs/builds the Dillrex-written version.
+5. Later, the Dillrex-built Dillrex can build itself.

@@ -1,0 +1,26 @@
+# upperfile.drx
+# Run: dillrex examples/upperfile.drx input.txt output.txt
+
+fn main then
+    if len(args) < 2 then
+        print("Usage: dillrex upperfile.drx input.txt output.txt")
+        return
+    end
+
+    set input = args[0]
+    set output = args[1]
+
+    if not exists(input) then
+        print("Error: input file does not exist")
+        return
+    end
+
+    set text = read(input)
+    set result = upper(text)
+
+    write(output, result)
+
+    print("Wrote uppercase text to " + output)
+end
+
+main()

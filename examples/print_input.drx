@@ -1,0 +1,8 @@
+# Dillrex print and input example
+
+set name = ask("Name: ")
+
+print("Hello", name)
+print("Ready:", true)
+print("Missing:", null)
+print("Score: " + 10)

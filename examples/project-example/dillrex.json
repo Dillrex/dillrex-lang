@@ -1,7 +1,7 @@
 {
   "name": "project-example",
   "version": "0.1.0",
-  "main": "main.dillrex",
+  "main": "main.drx",
   "source": "src",
   "assets": "assets",
   "build": "build"

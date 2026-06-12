@@ -17,13 +17,14 @@ ROOT = Path(__file__).resolve().parent.parent
 ICON_PATH = ROOT / "assets" / "dillrex-icon.png"
 DILLREX_TEMPLATE = """# My Dillrex program
 
-fn main() {
+fn main then
     print("hello from Dillrex")
-}
+end
+
+main()
 """
 
 FILE_TEMPLATES = {
-    ".dillrex": DILLREX_TEMPLATE,
     ".drx": DILLREX_TEMPLATE,
     ".bat": "@echo off\nREM New batch file\n",
     ".cmd": "@echo off\nREM New command file\n",
@@ -444,10 +445,10 @@ class DillrexTerminalApp:
 
     def run_file_command(self, args: list[str]) -> None:
         if not args:
-            self.write("Usage: run file.dillrex\n", "warn")
+            self.write("Usage: run file.drx\n", "warn")
             return
         path = self.resolve_path(args[0])
-        if path.suffix.lower() in {".dillrex", ".drx"}:
+        if path.suffix.lower() == ".drx":
             self.dillrex_run([str(path)])
             return
         self.run_system_command(" ".join(["\"" + str(path) + "\"", *args[1:]]))
@@ -483,7 +484,7 @@ class DillrexTerminalApp:
 
     def help(self, _args: list[str]) -> None:
         self.write("Commands: new, run, project, ls, dir, cd, pwd, mkdir, touch, cat, type, echo, open, clear, cls, exit\n")
-        self.write("Examples: new notes.txt, new app.dillrex, run app.dillrex, dillrex code print(\"hello\")\n")
+        self.write("Examples: new notes.txt, new app.drx, run app.drx, dillrex code print(\"hello\")\n")
         self.write("Projects: project new my-app, project run\n")
         self.write("Autocomplete: press Tab to complete, press Tab twice to show options.\n")
 
@@ -520,13 +521,13 @@ class DillrexTerminalApp:
         config = {
             "name": project_path.name,
             "version": "0.1.0",
-            "main": "main.dillrex",
+            "main": "main.drx",
             "source": "src",
             "assets": "assets",
             "build": "build",
         }
         (project_path / "dillrex.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-        (project_path / "main.dillrex").write_text(DILLREX_TEMPLATE, encoding="utf-8")
+        (project_path / "main.drx").write_text(DILLREX_TEMPLATE, encoding="utf-8")
 
         self.cwd = project_path.resolve()
         self.write(f"Created project {project_path.name}\n", "accent")
@@ -545,7 +546,7 @@ class DillrexTerminalApp:
             self.write(f"Invalid dillrex.json: {exc}\n", "error")
             return
 
-        main_name = config.get("main", "main.dillrex")
+        main_name = config.get("main", "main.drx")
         main_path = project_path / main_name
         self.dillrex_run([str(main_path)])
 
@@ -560,7 +561,7 @@ class DillrexTerminalApp:
 
     def dillrex(self, args: list[str]) -> None:
         if not args:
-            self.write("Usage: run file.dillrex\n", "warn")
+            self.write("Usage: run file.drx\n", "warn")
             return
         action = args[0].lower()
         rest = args[1:]
@@ -578,7 +579,7 @@ class DillrexTerminalApp:
             selected = filedialog.askopenfilename(
                 title="Run Dillrex file",
                 initialdir=str(self.cwd),
-                filetypes=[("Dillrex files", "*.dillrex *.drx"), ("All files", "*.*")],
+                filetypes=[("Dillrex files", "*.drx"), ("All files", "*.*")],
             )
             if not selected:
                 return
@@ -596,7 +597,7 @@ class DillrexTerminalApp:
 
         try:
             with contextlib.redirect_stdout(captured):
-                run_file(path, output=output, input_func=input_func)
+                run_file(path, output=output, input_func=input_func, work_dir=self.cwd)
         except DillrexError as exc:
             self.write(f"Dillrex error: {exc}\n", "error")
             return
@@ -611,7 +612,7 @@ class DillrexTerminalApp:
         if not code:
             self.write("Usage: dillrex code print(\"hello\")\n", "warn")
             return
-        source = code if code.lstrip().startswith("fn ") else f"fn main() {{\n{code}\n}}"
+        source = code if code.lstrip().startswith("fn ") else f"fn main then\n{code}\nend\nmain()"
         captured = io.StringIO()
 
         def output(*values: object) -> None:
@@ -656,7 +657,7 @@ class DillrexTerminalApp:
     def resolve_dillrex_path(self, raw: str) -> Path:
         path = self.resolve_path(raw)
         if path.suffix == "":
-            path = path.with_suffix(".dillrex")
+            path = path.with_suffix(".drx")
         return path
 
     def run(self) -> None:

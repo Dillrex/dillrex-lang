@@ -1,0 +1,332 @@
+# Dillrex-written parser experiment.
+# Program shape: ["program", imports, functions, body]
+# Function shape: ["function", name, params, body]
+
+fn makeParser(tokens) then
+    return [tokens, 0]
+end
+
+fn current(parser) then
+    return parser[0][parser[1]]
+end
+
+fn currentKind(parser) then
+    return current(parser)[0]
+end
+
+fn currentValue(parser) then
+    return current(parser)[1]
+end
+
+fn previous(parser) then
+    return parser[0][parser[1] - 1]
+end
+
+fn advance(parser) then
+    set token = current(parser)
+    set parser[1] = parser[1] + 1
+    return token
+end
+
+fn kindIn(kind, kinds) then
+    set i = 0
+    loop i < len(kinds) then
+        if kind == kinds[i] then
+            return true
+        end
+        set i = i + 1
+    end
+    return false
+end
+
+fn matchKind(parser, kind) then
+    if currentKind(parser) == kind then
+        return advance(parser)
+    end
+    return null
+end
+
+fn matchAny(parser, kinds) then
+    if kindIn(currentKind(parser), kinds) then
+        return advance(parser)
+    end
+    return null
+end
+
+fn expect(parser, kind, message) then
+    set token = matchKind(parser, kind)
+    if token != null then
+        return token
+    end
+
+    set at = current(parser)
+    throw message + " at line " + at[2] + ", column " + at[3]
+end
+
+fn parseProgram(tokens) then
+    set parser = makeParser(tokens)
+    set imports = []
+    set functions = []
+    set body = []
+
+    loop currentKind(parser) != "EOF" then
+        if currentKind(parser) == "IMPORT" then
+            advance(parser)
+            push(imports, expect(parser, "STRING", "Expected import path")[1])
+        else
+            if currentKind(parser) == "FN" then
+                push(functions, parseFunction(parser))
+            else
+                push(body, parseStatement(parser))
+            end
+        end
+    end
+
+    return ["program", imports, functions, body]
+end
+
+fn parseFunction(parser) then
+    expect(parser, "FN", "Expected fn")
+    set name = expect(parser, "NAME", "Expected function name")[1]
+    set params = []
+
+    if matchKind(parser, "(") != null then
+        if matchKind(parser, ")") == null then
+            set reading = true
+            loop reading then
+                push(params, expect(parser, "NAME", "Expected parameter name")[1])
+                if matchKind(parser, ")") != null then
+                    set reading = false
+                else
+                    expect(parser, ",", "Expected comma between parameters")
+                end
+            end
+        end
+    end
+
+    expect(parser, "THEN", "Expected then after function name")
+    set body = parseBlockUntil(parser, ["END"])
+    expect(parser, "END", "Expected end after function")
+    return ["function", name, params, body]
+end
+
+fn parseBlockUntil(parser, endings) then
+    set statements = []
+    loop not kindIn(currentKind(parser), endings) then
+        if currentKind(parser) == "EOF" then
+            throw "Expected end before the end of the file"
+        end
+        push(statements, parseStatement(parser))
+    end
+    return statements
+end
+
+fn parseStatement(parser) then
+    if matchKind(parser, "IF") != null then
+        set condition = parseExpression(parser)
+        expect(parser, "THEN", "Expected then after if condition")
+        set thenBody = parseBlockUntil(parser, ["ELSE", "END"])
+        set elseBody = []
+        if matchKind(parser, "ELSE") != null then
+            set elseBody = parseBlockUntil(parser, ["END"])
+        end
+        expect(parser, "END", "Expected end after if")
+        return ["if", condition, thenBody, elseBody]
+    end
+
+    if matchKind(parser, "LOOP") != null then
+        set condition = parseExpression(parser)
+        expect(parser, "THEN", "Expected then after loop condition")
+        set body = parseBlockUntil(parser, ["END"])
+        expect(parser, "END", "Expected end after loop")
+        return ["loop", condition, body]
+    end
+
+    if matchKind(parser, "SET") != null then
+        set target = parseAssignmentTarget(parser)
+        expect(parser, "=", "Expected =")
+        return ["assign", target, parseExpression(parser)]
+    end
+
+    if matchKind(parser, "RETURN") != null then
+        if kindIn(currentKind(parser), ["END", "ELSE", "CATCH", "EOF"]) then
+            return ["return", ["none", null]]
+        end
+        return ["return", parseExpression(parser)]
+    end
+
+    if matchKind(parser, "TRY") != null then
+        expect(parser, "THEN", "Expected then after try")
+        set tryBody = parseBlockUntil(parser, ["CATCH"])
+        expect(parser, "CATCH", "Expected catch after try block")
+        set errorName = expect(parser, "NAME", "Expected error variable name")[1]
+        expect(parser, "THEN", "Expected then after catch")
+        set catchBody = parseBlockUntil(parser, ["END"])
+        expect(parser, "END", "Expected end after try/catch")
+        return ["try", tryBody, errorName, catchBody]
+    end
+
+    if matchKind(parser, "THROW") != null then
+        return ["throw", parseExpression(parser)]
+    end
+
+    return ["expr", parseExpression(parser)]
+end
+
+fn parseAssignmentTarget(parser) then
+    set target = ["var_target", expect(parser, "NAME", "Expected variable name")[1]]
+
+    loop matchKind(parser, "[") != null then
+        set index = parseExpression(parser)
+        expect(parser, "]", "Expected ] after index")
+        set target = ["index_target", target, index]
+    end
+
+    return target
+end
+
+fn parseExpression(parser) then
+    return parseOr(parser)
+end
+
+fn parseOr(parser) then
+    set expr = parseAnd(parser)
+    loop matchKind(parser, "OR") != null then
+        set expr = ["logic", "or", expr, parseAnd(parser)]
+    end
+    return expr
+end
+
+fn parseAnd(parser) then
+    set expr = parseComparison(parser)
+    loop matchKind(parser, "AND") != null then
+        set expr = ["logic", "and", expr, parseComparison(parser)]
+    end
+    return expr
+end
+
+fn parseComparison(parser) then
+    set expr = parseAddition(parser)
+    loop matchAny(parser, ["==", "!=", "<", ">", "<=", ">="]) != null then
+        set operator = previous(parser)[0]
+        set expr = ["binary", operator, expr, parseAddition(parser)]
+    end
+    return expr
+end
+
+fn parseAddition(parser) then
+    set expr = parseMultiplication(parser)
+    loop matchAny(parser, ["+", "-"]) != null then
+        set operator = previous(parser)[0]
+        set expr = ["binary", operator, expr, parseMultiplication(parser)]
+    end
+    return expr
+end
+
+fn parseMultiplication(parser) then
+    set expr = parsePower(parser)
+    loop matchAny(parser, ["*", "/", "%"]) != null then
+        set operator = previous(parser)[0]
+        set expr = ["binary", operator, expr, parsePower(parser)]
+    end
+    return expr
+end
+
+fn parsePower(parser) then
+    set expr = parseUnary(parser)
+    if matchKind(parser, "**") != null then
+        set expr = ["binary", "**", expr, parsePower(parser)]
+    end
+    return expr
+end
+
+fn parseUnary(parser) then
+    if matchKind(parser, "NOT") != null then
+        return ["unary", "not", parseUnary(parser)]
+    end
+
+    if matchKind(parser, "-") != null then
+        return ["unary", "-", parseUnary(parser)]
+    end
+
+    return parsePrimary(parser)
+end
+
+fn parsePrimary(parser) then
+    set token = matchKind(parser, "NUMBER")
+    if token != null then
+        return finishPostfix(parser, ["number", token[1]])
+    end
+
+    set token = matchKind(parser, "STRING")
+    if token != null then
+        return finishPostfix(parser, ["string", token[1]])
+    end
+
+    if matchKind(parser, "TRUE") != null then
+        return finishPostfix(parser, ["bool", true])
+    end
+
+    if matchKind(parser, "FALSE") != null then
+        return finishPostfix(parser, ["bool", false])
+    end
+
+    if matchKind(parser, "NULL") != null then
+        return finishPostfix(parser, ["none", null])
+    end
+
+    set token = matchKind(parser, "NAME")
+    if token != null then
+        if matchKind(parser, "(") != null then
+            set args = []
+            if matchKind(parser, ")") == null then
+                set reading = true
+                loop reading then
+                    push(args, parseExpression(parser))
+                    if matchKind(parser, ")") != null then
+                        set reading = false
+                    else
+                        expect(parser, ",", "Expected comma between arguments")
+                    end
+                end
+            end
+            return finishPostfix(parser, ["call", token[1], args])
+        end
+
+        return finishPostfix(parser, ["var", token[1]])
+    end
+
+    if matchKind(parser, "[") != null then
+        set items = []
+        if matchKind(parser, "]") == null then
+            set reading = true
+            loop reading then
+                push(items, parseExpression(parser))
+                if matchKind(parser, "]") != null then
+                    set reading = false
+                else
+                    expect(parser, ",", "Expected comma between list items")
+                end
+            end
+        end
+        return finishPostfix(parser, ["list", items])
+    end
+
+    if matchKind(parser, "(") != null then
+        set expr = parseExpression(parser)
+        expect(parser, ")", "Expected )")
+        return finishPostfix(parser, expr)
+    end
+
+    set at = current(parser)
+    throw "Expected expression at line " + at[2] + ", column " + at[3]
+end
+
+fn finishPostfix(parser, expr) then
+    loop matchKind(parser, "[") != null then
+        set index = parseExpression(parser)
+        expect(parser, "]", "Expected ] after index")
+        set expr = ["index", expr, index]
+    end
+    return expr
+end

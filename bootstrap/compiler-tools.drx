@@ -1,0 +1,78 @@
+# Shared helpers for Dillrex bootstrap command-line tools.
+
+fn argsAfterIndex(allArgs, start) then
+    set runArgs = []
+    set i = start
+    loop i < len(allArgs) then
+        push(runArgs, allArgs[i])
+        set i = i + 1
+    end
+    return runArgs
+end
+
+fn printTokens(tokens) then
+    set i = 0
+    loop i < len(tokens) then
+        set token = tokens[i]
+        print("TOK\t" + token[0] + "\t" + quoteText(token[1]) + "\t" + token[2] + "\t" + token[3])
+        set i = i + 1
+    end
+end
+
+fn encodeValue(value) then
+    if kind(value) == "list" then
+        set result = "["
+        set i = 0
+        loop i < len(value) then
+            if i > 0 then
+                set result = result + ","
+            end
+            set result = result + encodeValue(value[i])
+            set i = i + 1
+        end
+        return result + "]"
+    end
+
+    if kind(value) == "text" then
+        return quoteText(value)
+    end
+
+    if value == null then
+        return "null"
+    end
+
+    return text(value)
+end
+
+fn quoteText(value) then
+    set escaped = replace(value, "\\", "\\\\")
+    set escaped = replace(escaped, "\"", "\\\"")
+    set escaped = replace(escaped, "\n", "\\n")
+    set escaped = replace(escaped, "\t", "\\t")
+    return "\"" + escaped + "\""
+end
+
+fn lineAt(lines, index, message) then
+    if len(lines) <= index then
+        throw message
+    end
+    return lines[index]
+end
+
+fn fieldAt(line, index, message) then
+    set fields = split(line, "\t")
+    if len(fields) <= index then
+        throw message
+    end
+    return fields[index]
+end
+
+fn lineValue(lines, index, expectedName) then
+    set line = lineAt(lines, index, "Missing " + expectedName + " line")
+    set name = fieldAt(line, 0, "Invalid " + expectedName + " line")
+    if name != expectedName then
+        throw "Expected " + expectedName + " line"
+    end
+    return fieldAt(line, 1, "Missing " + expectedName + " value")
+end
+

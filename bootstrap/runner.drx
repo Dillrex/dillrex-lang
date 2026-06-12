@@ -1,0 +1,597 @@
+# Dillrex-written runner experiment.
+# Runtime environment shape: [[name, value], ...]
+# Control signal shape: ["ok"|"return"|"throw", value]
+
+fn okSignal() then
+    return ["ok", null]
+end
+
+fn returnSignal(value) then
+    return ["return", value]
+end
+
+fn throwSignal(value) then
+    return ["throw", value]
+end
+
+fn envIndex(env, name) then
+    set i = 0
+    loop i < len(env) then
+        if env[i][0] == name then
+            return i
+        end
+        set i = i + 1
+    end
+    return -1
+end
+
+fn envGet(env, name) then
+    set index = envIndex(env, name)
+    if index < 0 then
+        throw "Unknown variable " + name
+    end
+    return env[index][1]
+end
+
+fn envSet(env, name, value) then
+    set index = envIndex(env, name)
+    if index < 0 then
+        push(env, [name, value])
+    else
+        set env[index][1] = value
+    end
+    return value
+end
+
+fn envClone(env) then
+    set copy = []
+    set i = 0
+    loop i < len(env) then
+        push(copy, [env[i][0], env[i][1]])
+        set i = i + 1
+    end
+    return copy
+end
+
+fn findFunction(program, name) then
+    set functions = program[2]
+    set i = 0
+    loop i < len(functions) then
+        if functions[i][1] == name then
+            return functions[i]
+        end
+        set i = i + 1
+    end
+    return null
+end
+
+fn runProgram(program, runArgs, sourcePath) then
+    set env = []
+    envSet(env, "args", runArgs)
+    set loaded = []
+    loadProgramImports(program, dirName(sourcePath), loaded, env)
+
+    set bodyResult = executeBlock(program[3], program, env)
+    if bodyResult[0] == "throw" then
+        throw bodyResult[1]
+    end
+
+    if len(program[3]) == 0 and findFunction(program, "main") != null then
+        set mainResult = callFunction(program, "main", [], env)
+        if mainResult[0] == "throw" then
+            throw mainResult[1]
+        end
+    end
+end
+
+fn loadProgramImports(program, baseDir, loaded, env) then
+    set imports = program[1]
+    set i = 0
+
+    loop i < len(imports) then
+        set importPath = resolveImportPath(baseDir, imports[i])
+
+        if not listContains(loaded, importPath) then
+            if not exists(importPath) then
+                throw "Could not find imported file " + imports[i]
+            end
+
+            push(loaded, importPath)
+            set importedSource = read(importPath)
+            set importedProgram = parseProgram(scanTokens(importedSource))
+            loadProgramImports(importedProgram, dirName(importPath), loaded, env)
+            mergeFunctions(program, importedProgram[2])
+
+            set result = executeBlock(importedProgram[3], program, env)
+            if result[0] == "throw" then
+                throw result[1]
+            end
+        end
+
+        set i = i + 1
+    end
+end
+
+fn mergeFunctions(program, functions) then
+    set i = 0
+    loop i < len(functions) then
+        push(program[2], functions[i])
+        set i = i + 1
+    end
+end
+
+fn listContains(values, search) then
+    set i = 0
+    loop i < len(values) then
+        if values[i] == search then
+            return true
+        end
+        set i = i + 1
+    end
+    return false
+end
+
+fn dirName(path) then
+    set last = -1
+    set i = 0
+    loop i < len(path) then
+        if path[i] == "/" or path[i] == "\\" then
+            set last = i
+        end
+        set i = i + 1
+    end
+
+    if last < 0 then
+        return "."
+    end
+
+    if last == 0 then
+        return path[0]
+    end
+
+    return textRange(path, 0, last)
+end
+
+fn resolveImportPath(baseDir, importPath) then
+    if isAbsolutePath(importPath) then
+        return importPath
+    end
+
+    if baseDir == "." or baseDir == "" then
+        return importPath
+    end
+
+    if contains(baseDir, "\\") then
+        return baseDir + "\\" + importPath
+    end
+
+    return baseDir + "/" + importPath
+end
+
+fn isAbsolutePath(path) then
+    if len(path) > 0 and (path[0] == "/" or path[0] == "\\") then
+        return true
+    end
+
+    if len(path) > 1 and path[1] == ":" then
+        return true
+    end
+
+    return false
+end
+
+fn textRange(value, start, stop) then
+    set result = ""
+    set i = start
+    loop i < stop then
+        set result = result + value[i]
+        set i = i + 1
+    end
+    return result
+end
+
+fn executeBlock(statements, program, env) then
+    set i = 0
+    loop i < len(statements) then
+        set result = executeStatement(statements[i], program, env)
+        if result[0] != "ok" then
+            return result
+        end
+        set i = i + 1
+    end
+    return okSignal()
+end
+
+fn executeStatement(statement, program, env) then
+    set kindName = statement[0]
+
+    if kindName == "assign" then
+        assignTarget(statement[1], evaluate(statement[2], program, env), program, env)
+        return okSignal()
+    end
+
+    if kindName == "if" then
+        if bool(evaluate(statement[1], program, env)) then
+            return executeBlock(statement[2], program, env)
+        end
+        return executeBlock(statement[3], program, env)
+    end
+
+    if kindName == "loop" then
+        set turns = 0
+        loop bool(evaluate(statement[1], program, env)) then
+            set result = executeBlock(statement[2], program, env)
+            if result[0] != "ok" then
+                return result
+            end
+            set turns = turns + 1
+            if turns > 1000000 then
+                return throwSignal("Loop stopped after 1,000,000 turns")
+            end
+        end
+        return okSignal()
+    end
+
+    if kindName == "expr" then
+        evaluate(statement[1], program, env)
+        return okSignal()
+    end
+
+    if kindName == "return" then
+        return returnSignal(evaluate(statement[1], program, env))
+    end
+
+    if kindName == "try" then
+        set result = executeBlock(statement[1], program, env)
+        if result[0] == "throw" then
+            envSet(env, statement[2], result[1])
+            return executeBlock(statement[3], program, env)
+        end
+        return result
+    end
+
+    if kindName == "throw" then
+        return throwSignal(evaluate(statement[1], program, env))
+    end
+
+    return throwSignal("Unknown statement " + kindName)
+end
+
+fn assignTarget(target, value, program, env) then
+    if target[0] == "var_target" then
+        envSet(env, target[1], value)
+        return value
+    end
+
+    if target[0] == "index_target" then
+        set container = targetContainer(target[1], program, env)
+        set index = int(evaluate(target[2], program, env))
+        set container[index] = value
+        return value
+    end
+
+    throw "Unknown assignment target " + target[0]
+end
+
+fn targetContainer(target, program, env) then
+    if target[0] == "var_target" then
+        return envGet(env, target[1])
+    end
+
+    if target[0] == "index_target" then
+        set container = targetContainer(target[1], program, env)
+        set index = int(evaluate(target[2], program, env))
+        return container[index]
+    end
+
+    throw "Unknown assignment target " + target[0]
+end
+
+fn evaluate(expr, program, env) then
+    set kindName = expr[0]
+
+    if kindName == "number" then
+        return num(expr[1])
+    end
+
+    if kindName == "string" then
+        return expr[1]
+    end
+
+    if kindName == "bool" then
+        return expr[1]
+    end
+
+    if kindName == "none" then
+        return null
+    end
+
+    if kindName == "var" then
+        return envGet(env, expr[1])
+    end
+
+    if kindName == "list" then
+        set values = []
+        set i = 0
+        loop i < len(expr[1]) then
+            push(values, evaluate(expr[1][i], program, env))
+            set i = i + 1
+        end
+        return values
+    end
+
+    if kindName == "index" then
+        set container = evaluate(expr[1], program, env)
+        set index = int(evaluate(expr[2], program, env))
+        return container[index]
+    end
+
+    if kindName == "call" then
+        set values = []
+        set i = 0
+        loop i < len(expr[2]) then
+            push(values, evaluate(expr[2][i], program, env))
+            set i = i + 1
+        end
+
+        set result = callFunction(program, expr[1], values, env)
+        if result[0] == "throw" then
+            throw result[1]
+        end
+        return result[1]
+    end
+
+    if kindName == "unary" then
+        set value = evaluate(expr[2], program, env)
+        if expr[1] == "not" then
+            return not bool(value)
+        end
+        return 0 - value
+    end
+
+    if kindName == "logic" then
+        set left = evaluate(expr[2], program, env)
+        if expr[1] == "and" then
+            return bool(left) and bool(evaluate(expr[3], program, env))
+        end
+        if expr[1] == "or" then
+            return bool(left) or bool(evaluate(expr[3], program, env))
+        end
+        throw "Unknown logic operator " + expr[1]
+    end
+
+    if kindName == "binary" then
+        return applyBinary(expr[1], evaluate(expr[2], program, env), evaluate(expr[3], program, env))
+    end
+
+    throw "Unknown expression " + kindName
+end
+
+fn applyBinary(operator, left, right) then
+    if operator == "+" then
+        if kind(left) == "text" or kind(right) == "text" then
+            return text(left) + text(right)
+        end
+        return left + right
+    end
+    if operator == "-" then
+        return left - right
+    end
+    if operator == "*" then
+        return left * right
+    end
+    if operator == "/" then
+        return left / right
+    end
+    if operator == "%" then
+        return left % right
+    end
+    if operator == "**" then
+        return left ** right
+    end
+    if operator == "==" then
+        return left == right
+    end
+    if operator == "!=" then
+        return left != right
+    end
+    if operator == "<" then
+        return left < right
+    end
+    if operator == ">" then
+        return left > right
+    end
+    if operator == "<=" then
+        return left <= right
+    end
+    if operator == ">=" then
+        return left >= right
+    end
+    throw "Unknown operator " + operator
+end
+
+fn callFunction(program, name, values, env) then
+    if isRunnerBuiltin(name) then
+        return returnSignal(callBuiltin(name, values))
+    end
+
+    set fnNode = findFunction(program, name)
+    if fnNode == null then
+        return throwSignal("Unknown function " + name + "()")
+    end
+
+    set params = fnNode[2]
+    if len(values) != len(params) then
+        return throwSignal(name + "() expected " + len(params) + " argument(s), got " + len(values))
+    end
+
+    set localEnv = envClone(env)
+    set i = 0
+    loop i < len(params) then
+        envSet(localEnv, params[i], values[i])
+        set i = i + 1
+    end
+
+    set result = executeBlock(fnNode[3], program, localEnv)
+    if result[0] == "return" then
+        return returnSignal(result[1])
+    end
+    return result
+end
+
+fn isRunnerBuiltin(name) then
+    return name == "print" or name == "ask" or name == "len" or name == "kind" or name == "type" or name == "str" or name == "text" or name == "num" or name == "int" or name == "bool" or name == "upper" or name == "lower" or name == "trim" or name == "contains" or name == "split" or name == "replace" or name == "push" or name == "pop" or name == "remove" or name == "read" or name == "write" or name == "append" or name == "exists" or name == "delete" or name == "listfiles" or name == "round" or name == "floor" or name == "ceil" or name == "abs" or name == "min" or name == "max"
+end
+
+fn callBuiltin(name, values) then
+    if name == "print" then
+        callPrint(values)
+        return null
+    end
+    if name == "ask" then
+        if len(values) == 0 then
+            return ask()
+        end
+        return ask(values[0])
+    end
+    if name == "len" then
+        return len(values[0])
+    end
+    if name == "kind" or name == "type" then
+        return kind(values[0])
+    end
+    if name == "str" or name == "text" then
+        return text(values[0])
+    end
+    if name == "num" then
+        return num(values[0])
+    end
+    if name == "int" then
+        return int(values[0])
+    end
+    if name == "bool" then
+        return bool(values[0])
+    end
+    if name == "upper" then
+        return upper(values[0])
+    end
+    if name == "lower" then
+        return lower(values[0])
+    end
+    if name == "trim" then
+        return trim(values[0])
+    end
+    if name == "contains" then
+        return contains(values[0], values[1])
+    end
+    if name == "split" then
+        return split(values[0], values[1])
+    end
+    if name == "replace" then
+        return replace(values[0], values[1], values[2])
+    end
+    if name == "push" then
+        push(values[0], values[1])
+        return null
+    end
+    if name == "pop" then
+        return pop(values[0])
+    end
+    if name == "remove" then
+        return remove(values[0], values[1])
+    end
+    if name == "read" then
+        return read(values[0])
+    end
+    if name == "write" then
+        write(values[0], values[1])
+        return null
+    end
+    if name == "append" then
+        append(values[0], values[1])
+        return null
+    end
+    if name == "exists" then
+        return exists(values[0])
+    end
+    if name == "delete" then
+        delete(values[0])
+        return null
+    end
+    if name == "listfiles" then
+        return listfiles(values[0])
+    end
+    if name == "round" then
+        return round(values[0])
+    end
+    if name == "floor" then
+        return floor(values[0])
+    end
+    if name == "ceil" then
+        return ceil(values[0])
+    end
+    if name == "abs" then
+        return abs(values[0])
+    end
+    if name == "min" then
+        return builtinMin(values)
+    end
+    if name == "max" then
+        return builtinMax(values)
+    end
+    throw "Unknown built-in " + name
+end
+
+fn callPrint(values) then
+    if len(values) == 0 then
+        print()
+    else
+        if len(values) == 1 then
+            print(values[0])
+        else
+            if len(values) == 2 then
+                print(values[0], values[1])
+            else
+                if len(values) == 3 then
+                    print(values[0], values[1], values[2])
+                else
+                    print(values)
+                end
+            end
+        end
+    end
+end
+
+fn builtinMin(values) then
+    set result = values[0]
+    set i = 1
+    loop i < len(values) then
+        if values[i] < result then
+            set result = values[i]
+        end
+        set i = i + 1
+    end
+    return result
+end
+
+fn builtinMax(values) then
+    set result = values[0]
+    set i = 1
+    loop i < len(values) then
+        if values[i] > result then
+            set result = values[i]
+        end
+        set i = i + 1
+    end
+    return result
+end
+
+fn argsAfterFirst(allArgs) then
+    set runArgs = []
+    set i = 1
+    loop i < len(allArgs) then
+        push(runArgs, allArgs[i])
+        set i = i + 1
+    end
+    return runArgs
+end

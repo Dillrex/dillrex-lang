@@ -1,0 +1,11 @@
+# Dillrex variables
+
+set name = "Dylan"
+set age = 21
+set money = 25.50
+set active = true
+
+print("Name: " + name)
+print("Age: " + age)
+print("Money: " + money)
+print("Active: " + active)

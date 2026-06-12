@@ -1,0 +1,15 @@
+# Dillrex text, numbers, booleans, and null
+
+set name = "Dylan"
+set whole = 7
+set decimal = 2.5
+set ready = true
+set missing = null
+
+print("Name: " + name)
+print(whole + decimal)
+print("Ready: " + ready)
+print("Missing: " + missing)
+print(num("5") + 1)
+print(int(4.9))
+print(kind(decimal))

@@ -1,17 +1,19 @@
 # My first Dillrex program
 
-fn main() {
-    name = in("Name: ")
+fn main then
+    set name = ask("Name: ")
 
-    if name == "Dylan" {
+    if name == "Dylan" then
         print("Welcome back Dylan")
-    } else {
+    else
         print("Hello " + name)
-    }
+    end
 
-    x = 0
-    loop x < 5 {
+    set x = 0
+    loop x < 5 then
         print(x)
-        x = x + 1
-    }
-}
+        set x = x + 1
+    end
+end
+
+main()

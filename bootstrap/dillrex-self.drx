@@ -1,0 +1,89 @@
+# Starter for a future Dillrex interpreter/compiler written in Dillrex.
+# Run: dillrex bootstrap/dillrex-self.drx examples/no_input.drx
+
+import "lexer.drx"
+import "parser.drx"
+import "runner.drx"
+import "compiler-tools.drx"
+
+fn main then
+    if len(args) < 1 then
+        print("Usage: dillrex bootstrap/dillrex-self.drx [--quiet] [--tokens|--ast] file.drx")
+        return
+    end
+
+    set quiet = false
+    set mode = "run"
+    set sourceIndex = 0
+    set readingFlags = true
+
+    loop sourceIndex < len(args) and readingFlags then
+        if args[sourceIndex] == "--quiet" then
+            set quiet = true
+            set sourceIndex = sourceIndex + 1
+        else
+            if args[sourceIndex] == "--tokens" then
+                set mode = "tokens"
+                set sourceIndex = sourceIndex + 1
+            else
+                if args[sourceIndex] == "--ast" then
+                    set mode = "ast"
+                    set sourceIndex = sourceIndex + 1
+                else
+                    set readingFlags = false
+                end
+            end
+        end
+    end
+
+    if len(args) <= sourceIndex then
+        print("Usage: dillrex bootstrap/dillrex-self.drx [--quiet] [--tokens|--ast] file.drx")
+        return
+    end
+
+    set sourcePath = args[sourceIndex]
+
+    if not exists(sourcePath) then
+        print("Missing file: " + sourcePath)
+        return
+    end
+
+    set source = read(sourcePath)
+    set tokens = scanTokens(source)
+    set program = parseProgram(tokens)
+
+    if mode == "tokens" then
+        printTokens(tokens)
+        return
+    end
+
+    if mode == "ast" then
+        print(encodeValue(program))
+        return
+    end
+
+    if not quiet then
+        print("Dillrex self-host bootstrap")
+        print("Source: " + sourcePath)
+        print("Tokens: " + len(tokens))
+        print("First token: " + tokens[0])
+        print("Imports: " + len(program[1]))
+        print("Functions: " + len(program[2]))
+        print("Body statements: " + len(program[3]))
+    end
+
+    set shown = 0
+    loop not quiet and shown < len(tokens) and shown < 12 then
+        set token = tokens[shown]
+        print(token[2] + ":" + token[3] + " " + token[0] + " " + token[1])
+        set shown = shown + 1
+    end
+
+    if not quiet then
+        print("Running with Dillrex-built runner")
+    end
+
+    runProgram(program, argsAfterIndex(args, sourceIndex + 1), sourcePath)
+end
+
+main()

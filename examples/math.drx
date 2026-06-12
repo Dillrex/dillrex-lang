@@ -1,0 +1,13 @@
+# Dillrex math example
+
+print(2 + 3 * 4)
+print((2 + 3) * 4)
+print(10 % 3)
+print(2 ** 3)
+
+print(round(2.6))
+print(floor(2.9))
+print(ceil(2.1))
+print(abs(-5))
+print(min(4, 2, 9))
+print(max(4, 2, 9))

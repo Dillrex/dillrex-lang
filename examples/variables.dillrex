@@ -1,9 +1,0 @@
-# Dillrex variables
-
-fn main() {
-    name = "Dylan"
-    age = 21
-
-    print("Name: " + name)
-    print("Age: " + age)
-}

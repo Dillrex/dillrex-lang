@@ -1,0 +1,113 @@
+# Dillrex compiler front-end, written in Dillrex.
+# Run: dillrex bootstrap/dillrexc.drx run examples/no_input.drx
+
+import "lexer.drx"
+import "parser.drx"
+import "runner.drx"
+import "compiler-tools.drx"
+
+fn main then
+    if len(args) < 2 then
+        printUsage()
+        return
+    end
+
+    set command = args[0]
+    set sourcePath = args[1]
+
+    if command == "read" then
+        readArtifactCommand(sourcePath)
+        return
+    end
+
+    if not exists(sourcePath) then
+        print("Missing file: " + sourcePath)
+        return
+    end
+
+    set source = read(sourcePath)
+    set tokens = scanTokens(source)
+    set program = parseProgram(tokens)
+
+    if command == "tokens" then
+        printTokens(tokens)
+        return
+    end
+
+    if command == "ast" then
+        print(encodeValue(program))
+        return
+    end
+
+    if command == "check" then
+        print("CHECK\t" + sourcePath + "\t" + len(tokens) + "\t" + len(program[1]) + "\t" + len(program[2]) + "\t" + len(program[3]))
+        return
+    end
+
+    if command == "build" then
+        if len(args) < 3 then
+            print("Usage: dillrex bootstrap/dillrexc.drx build file.drx output.drxc")
+            return
+        end
+
+        set outputPath = args[2]
+        write(outputPath, buildArtifact(sourcePath, tokens, program))
+        print("BUILT\t" + outputPath)
+        return
+    end
+
+    if command == "run" then
+        runProgram(program, argsAfterIndex(args, 2), sourcePath)
+        return
+    end
+
+    print("Unknown command: " + command)
+    printUsage()
+end
+
+fn printUsage() then
+    print("Usage: dillrex bootstrap/dillrexc.drx run|tokens|ast|check file.drx")
+    print("       dillrex bootstrap/dillrexc.drx build file.drx output.drxc")
+    print("       dillrex bootstrap/dillrexc.drx read artifact.drxc")
+end
+
+fn buildArtifact(sourcePath, tokens, program) then
+    set text = "DILLREX-COMPILED\t0.1\n"
+    set text = text + "SOURCE\t" + quoteText(sourcePath) + "\n"
+    set text = text + "TOKENS\t" + len(tokens) + "\n"
+    set text = text + "IMPORTS\t" + len(program[1]) + "\n"
+    set text = text + "FUNCTIONS\t" + len(program[2]) + "\n"
+    set text = text + "BODY\t" + len(program[3]) + "\n"
+    set text = text + "AST\t" + encodeValue(program) + "\n"
+    return text
+end
+
+fn readArtifactCommand(path) then
+    if not exists(path) then
+        print("Missing file: " + path)
+        return
+    end
+
+    set lines = split(trim(read(path)), "\n")
+    set header = lineAt(lines, 0, "Missing artifact header")
+    if header != "DILLREX-COMPILED\t0.1" then
+        throw "Invalid artifact header"
+    end
+
+    set source = lineValue(lines, 1, "SOURCE")
+    set tokens = lineValue(lines, 2, "TOKENS")
+    set imports = lineValue(lines, 3, "IMPORTS")
+    set functions = lineValue(lines, 4, "FUNCTIONS")
+    set body = lineValue(lines, 5, "BODY")
+    set ast = lineValue(lines, 6, "AST")
+
+    print("ARTIFACT\t" + path)
+    print("SOURCE\t" + source)
+    print("TOKENS\t" + tokens)
+    print("IMPORTS\t" + imports)
+    print("FUNCTIONS\t" + functions)
+    print("BODY\t" + body)
+    print("AST_BYTES\t" + len(ast))
+end
+
+main()
