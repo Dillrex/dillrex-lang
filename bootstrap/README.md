@@ -24,10 +24,11 @@ Current stage:
 18. `dillrexc.drxc` can build another `.drxc` program artifact.
 19. The Python seed runtime now handles very long Dillrex logic chains without stack overflow.
 20. `dillrexc.drx rebuild-self` and `smoke-self` provide explicit self-build smoke commands.
+21. `dillrexc.drxc` can rebuild `dillrexc.drx` into a second-generation compiler artifact.
 
 Planned stages:
 
-1. Optimize the second-generation compiler rebuild so `dillrexc.drxc` can rebuild `dillrexc.drx` within normal verification time.
+1. Optimize the second-generation compiler rebuild so it is fast enough for normal verification.
 2. Compare first-generation and second-generation compiler artifacts.
 3. Add simple compile targets after the AST shape settles.
 
@@ -41,6 +42,18 @@ On Linux/macOS:
 
 ```bash
 sh VERIFY_BOOTSTRAP.sh
+```
+
+Run the deeper self-host proof:
+
+```powershell
+VERIFY_SELFHOST2.cmd
+```
+
+On Linux/macOS:
+
+```bash
+sh VERIFY_SELFHOST2.sh
 ```
 
 Inspect compiler pipeline output:

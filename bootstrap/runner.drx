@@ -488,7 +488,7 @@ fn callBuiltin(name, values) then
         return split(values[0], values[1])
     end
     if name == "join" then
-        return builtinJoin(values[0], values[1])
+        return nativeJoin(values[0], values[1])
     end
     if name == "replace" then
         return replace(values[0], values[1], values[2])

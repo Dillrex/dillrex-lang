@@ -389,6 +389,9 @@ class Interpreter:
             "contains": lambda value, search: self.to_text(search) in self.to_text(value),
             "split": lambda value, separator: self.to_text(value).split(self.to_text(separator)),
             "join": lambda values, separator: self.to_text(separator).join(self.to_text(value) for value in values),
+            "nativeJoin": lambda values, separator: self.to_text(separator).join(
+                self.to_text(value) for value in values
+            ),
             "replace": lambda value, old, new: self.to_text(value).replace(self.to_text(old), self.to_text(new)),
             "push": self.list_push,
             "pop": self.list_pop,

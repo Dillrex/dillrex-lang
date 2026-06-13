@@ -1,0 +1,20 @@
+# GitHub Linguist language stats
+#
+# Dillrex source is the real language surface of this repo.
+*.drx linguist-language=Dillrex
+*.drxc linguist-language=Dillrex
+
+# Python is the seed/runtime/tooling layer for bootstrapping, so hide it
+# from the GitHub language bar.
+dillrex/**/*.py linguist-vendored
+tests/**/*.py linguist-vendored
+
+# Project metadata, docs, scripts, and assets should not compete with
+# Dillrex in the language stats.
+*.md linguist-documentation
+*.cmd linguist-vendored
+*.sh linguist-vendored
+*.ps1 linguist-vendored
+*.vbs linguist-vendored
+*.toml linguist-vendored
+assets/** linguist-vendored

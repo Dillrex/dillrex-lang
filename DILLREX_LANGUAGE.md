@@ -61,12 +61,13 @@ end
 ## Bootstrapping Plan
 
 The first Dillrex runtime is written in Python so the language has something to run on.
-The next goal is to write a second interpreter/compiler in `.drx`.
+The next goal is to keep moving more of the toolchain into `.drx` and make the self-hosted path faster.
 
 Stages:
 
 1. Python runs `.drx` files.
 2. `.drx` tools read source files, split text, and build token lists.
 3. `.drx` parser and runner are added under `bootstrap/`.
-4. Python only runs/builds the Dillrex-written version.
-5. Later, the Dillrex-built Dillrex can build itself.
+4. Python only starts the Dillrex-written version.
+5. The Dillrex-written compiler builds `.drxc` artifacts.
+6. The self-built `dillrexc.drxc` can rebuild `dillrexc.drx` into a second-generation compiler artifact.

@@ -2,7 +2,7 @@
 
 ![Dillrex icon](assets/dillrex-icon.png)
 
-Dillrex is a custom programming language that runs `.drx` files. The current package version is **0.2.0**.
+Dillrex is a custom programming language that runs `.drx` files. The current package version is **0.3.0**.
 
 Right now, Python is still the starter runtime. On top of that, Dillrex now has the beginning of a self-hosted toolchain written in Dillrex itself:
 
@@ -16,6 +16,10 @@ Python Dillrex runtime
 ```
 
 There is also a Dillrex-written compiler front-end, `bootstrap/dillrexc.drx`, that can inspect source, run programs, build `.drxc` artifacts, read them, decode their stored AST, and run those artifacts.
+
+The current self-hosting milestone is working: Dillrex can build `dillrexc.drx` into `dillrexc.drxc`, then use that self-built compiler artifact to build `dillrexc.drx` again.
+
+GitHub language stats are configured to count `.drx` and `.drxc` files as **Dillrex** while hiding the Python seed/runtime from the repo language bar.
 
 ## Quick Start
 
@@ -47,6 +51,12 @@ Run the self-host bootstrap checks:
 
 ```powershell
 VERIFY_BOOTSTRAP.cmd
+```
+
+Run the deeper self-host proof:
+
+```powershell
+VERIFY_SELFHOST2.cmd
 ```
 
 On Linux/macOS:
@@ -270,8 +280,10 @@ python -m dillrex bootstrap\dillrexc.drx run-artifact build\no_input.drxc
 Current `.drxc` files are simple text artifacts:
 
 ```text
-DILLREX-COMPILED    0.1
+DILLREX-COMPILED    0.2
+FORMAT              ast-text
 SOURCE              "examples/no_input.drx"
+SOURCE_DIR          "examples"
 TOKENS              34
 IMPORTS             0
 FUNCTIONS           1
@@ -325,13 +337,16 @@ Run only bootstrap tests:
 python -m unittest tests.test_bootstrap
 ```
 
-<<<<<<< HEAD
 Run the one-command bootstrap verifier:
-=======
->>>>>>> 57c615ae933240fa04b82892f8fe71776e1160ea
 
 ```powershell
 VERIFY_BOOTSTRAP.cmd
+```
+
+Run the deeper compiler-rebuild proof:
+
+```powershell
+VERIFY_SELFHOST2.cmd
 ```
 
 The verifier checks:
@@ -343,9 +358,15 @@ The verifier checks:
 - `.drxc` build/read/decode/run-artifact
 - nested self-host execution
 
+`VERIFY_SELFHOST2.cmd` is slower, but it checks the bigger milestone:
+
+- build the Dillrex compiler artifact
+- use that self-built artifact to rebuild the Dillrex compiler
+- verify the second-generation compiler artifact
+
 ## Current Status
 
-Dillrex is at the **0.2.0 bootstrap foundation** stage.
+Dillrex is at the **0.3.0 self-hosting milestone** stage.
 
 What works now:
 
@@ -359,11 +380,13 @@ What works now:
 - `dillrexc.drxc` can build another `.drxc` artifact
 - `dillrexc.drx rebuild-self` builds the compiler front-end artifact
 - `dillrexc.drx smoke-self` builds the compiler artifact, uses it to build a program artifact, then runs that program
+- `dillrexc.drxc` can rebuild `dillrexc.drx` into a second-generation compiler artifact
 - the Python seed runtime handles long logic chains without overflowing the Python stack
+- the Dillrex-built runner uses the Python seed only for host runtime services while Dillrex code handles lexing, parsing, artifact building, and artifact running
 - focused bootstrap tests pass
 
 What is next:
 
-- optimize the second-generation compiler rebuild so `dillrexc.drxc` can rebuild `dillrexc.drx` within normal verification time
+- optimize the second-generation compiler rebuild so it is fast enough for normal verification
+- compare first-generation and second-generation compiler artifacts
 - add simple compile targets after the AST shape settles
-- eventually let the Dillrex-built Dillrex build itself

@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -445,6 +446,31 @@ class BootstrapTests(unittest.TestCase):
             for path in [compiler_path, smoke_path]:
                 if path.exists():
                     path.unlink()
+
+    @unittest.skipUnless(
+        os.environ.get("DILLREX_SLOW_SELFHOST") == "1",
+        "set DILLREX_SLOW_SELFHOST=1 to run the deep self-host rebuild",
+    )
+    def test_self_built_compiler_rebuilds_compiler(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            compiler_one = root / "dillrexc-1.drxc"
+            compiler_two = root / "dillrexc-2.drxc"
+
+            self.run_dillrexc("build", "bootstrap/dillrexc.drx", str(compiler_one))
+            build_lines = self.run_dillrexc(
+                "run-artifact",
+                str(compiler_one),
+                "build",
+                "bootstrap/dillrexc.drx",
+                str(compiler_two),
+            )
+            verify_lines = self.run_dillrexc("verify", str(compiler_two))
+
+            self.assertEqual(build_lines, [f"BUILT\t{compiler_two}"])
+            self.assertEqual(len(verify_lines), 1)
+            self.assertTrue(verify_lines[0].startswith(f"VERIFY\tOK\t{compiler_two}\tprogram\t"))
+            self.assertTrue(verify_lines[0].endswith("\t1"))
 
 
 if __name__ == "__main__":
