@@ -1,8 +1,11 @@
-# Dillrex
+# dillrex-lang
+
+![Language](https://img.shields.io/badge/language-dillrex--lang-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-green)
 
 ![Dillrex icon](assets/dillrex-icon.png)
 
-Dillrex is a custom programming language that runs `.drx` files. The current package version is **0.3.0**.
+**dillrex-lang** is a custom programming language that runs `.drx` files. The current package version is **0.3.0**.
 
 Right now, Python is still the starter runtime. On top of that, Dillrex now has the beginning of a self-hosted toolchain written in Dillrex itself:
 
@@ -19,7 +22,7 @@ There is also a Dillrex-written compiler front-end, `bootstrap/dillrexc.drx`, th
 
 The current self-hosting milestone is working: Dillrex can build `dillrexc.drx` into `dillrexc.drxc`, then use that self-built compiler artifact to build `dillrexc.drx` again.
 
-GitHub language stats are configured to count `.drx` and `.drxc` files as **Dillrex** while hiding the Python seed/runtime from the repo language bar.
+This repo is configured to hide the Python seed/runtime from GitHub's language bar. GitHub will only show a real **Dillrex** language label in the sidebar after Dillrex is added to GitHub Linguist, so the README marks the project as **dillrex-lang** directly.
 
 ## Quick Start
 

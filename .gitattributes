@@ -1,6 +1,7 @@
 # GitHub Linguist language stats
 #
-# Dillrex source is the real language surface of this repo.
+# Dillrex source is the real language surface of this repo. GitHub can only
+# show this as a sidebar language after Dillrex is accepted by GitHub Linguist.
 *.drx linguist-language=Dillrex
 *.drxc linguist-language=Dillrex
 
